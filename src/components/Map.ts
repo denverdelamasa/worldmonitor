@@ -252,7 +252,7 @@ export class MapComponent {
       'countries', 'waterways',                           // labels
     ];
     const layerLabels: Partial<Record<keyof MapLayers, string>> = {
-      ais: 'Ships',
+      ais: 'Shipping',
       military: 'Military',
     };
 

@@ -2,15 +2,13 @@ import type { MilitaryFlight, MilitaryFlightCluster, MilitaryAircraftType, Milit
 import { createCircuitBreaker } from '@/utils';
 import {
   identifyByCallsign,
-  identifyByAircraftType,
   isKnownMilitaryHex,
   getNearbyHotspot,
   MILITARY_HOTSPOTS,
 } from '@/config/military';
 
-// OpenSky Network API - free tier allows anonymous requests with rate limits
+// OpenSky Network API - authenticated users get 4000 credits/day
 const OPENSKY_BASE_URL = '/api/opensky';
-const ADSB_EXCHANGE_URL = '/api/adsb-exchange';
 
 // Cache configuration
 const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
@@ -234,99 +232,65 @@ function parseOpenSkyResponse(data: OpenSkyResponse): MilitaryFlight[] {
 
 /**
  * Fetch military flights from OpenSky Network
+ * Uses regional queries to reduce API usage and bandwidth
  */
 async function fetchFromOpenSky(): Promise<MilitaryFlight[]> {
-  try {
-    // OpenSky API - fetch all states (global)
-    // Rate limit: Anonymous users can make up to 400 requests per day
-    const response = await fetch(`${OPENSKY_BASE_URL}/states/all`, {
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
+  const allFlights: MilitaryFlight[] = [];
+  const seenHexCodes = new Set<string>();
 
-    if (!response.ok) {
-      console.warn(`[Military Flights] OpenSky API error: ${response.status}`);
+  // Query each hotspot region instead of global (saves API credits)
+  // Global = 4 credits, regional = 1-3 credits depending on area
+  const regionQueries = MILITARY_HOTSPOTS.map(async (hotspot) => {
+    try {
+      const lamin = hotspot.lat - hotspot.radius;
+      const lamax = hotspot.lat + hotspot.radius;
+      const lomin = hotspot.lon - hotspot.radius;
+      const lomax = hotspot.lon + hotspot.radius;
+
+      const response = await fetch(
+        `${OPENSKY_BASE_URL}?lamin=${lamin}&lamax=${lamax}&lomin=${lomin}&lomax=${lomax}`,
+        { headers: { 'Accept': 'application/json' } }
+      );
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          console.warn(`[Military Flights] Rate limited for ${hotspot.name}`);
+        }
+        return [];
+      }
+
+      const data: OpenSkyResponse = await response.json();
+      return parseOpenSkyResponse(data);
+    } catch {
       return [];
     }
+  });
 
-    const data: OpenSkyResponse = await response.json();
-    const flights = parseOpenSkyResponse(data);
+  // Execute in batches of 3 to avoid rate limiting
+  const batchSize = 3;
+  for (let i = 0; i < regionQueries.length; i += batchSize) {
+    const batch = regionQueries.slice(i, i + batchSize);
+    const results = await Promise.all(batch);
 
-    console.log(`[Military Flights] Found ${flights.length} military aircraft from OpenSky`);
-    return flights;
-  } catch (error) {
-    console.error('[Military Flights] OpenSky fetch error:', error);
-    return [];
-  }
-}
-
-/**
- * Fetch from ADS-B Exchange as backup/supplement
- * Note: Requires API key for full access
- */
-async function fetchFromADSBExchange(): Promise<MilitaryFlight[]> {
-  try {
-    // Try military-specific endpoint if available
-    const response = await fetch(`${ADSB_EXCHANGE_URL}/v2/mil`, {
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      // Fallback to main feed is handled by returning empty
-      return [];
+    for (const flights of results) {
+      for (const flight of flights) {
+        if (!seenHexCodes.has(flight.hexCode)) {
+          seenHexCodes.add(flight.hexCode);
+          allFlights.push(flight);
+        }
+      }
     }
 
-    const data = await response.json();
-
-    // Parse ADS-B Exchange format (different from OpenSky)
-    if (!data.ac) return [];
-
-    const flights: MilitaryFlight[] = [];
-    const now = new Date();
-
-    for (const ac of data.ac) {
-      if (!ac.lat || !ac.lon) continue;
-
-      const callsign = (ac.flight || ac.r || '').trim();
-      const info = determineAircraftInfo(callsign, ac.hex || '', ac.t);
-
-      // Get aircraft type info if available
-      const typeInfo = ac.t ? identifyByAircraftType(ac.t) : undefined;
-
-      const flight: MilitaryFlight = {
-        id: `adsb-${ac.hex}`,
-        callsign: callsign || `UNKN-${(ac.hex || '').substring(0, 4).toUpperCase()}`,
-        hexCode: (ac.hex || '').toUpperCase(),
-        registration: ac.r,
-        aircraftType: typeInfo?.type || info.type,
-        aircraftModel: typeInfo?.name || ac.t,
-        operator: info.operator,
-        operatorCountry: info.country,
-        lat: ac.lat,
-        lon: ac.lon,
-        altitude: ac.alt_baro || ac.alt_geom || 0,
-        heading: ac.track || 0,
-        speed: ac.gs || 0,
-        verticalRate: ac.baro_rate,
-        onGround: ac.alt_baro === 'ground',
-        squawk: ac.squawk,
-        lastSeen: now,
-        confidence: info.confidence,
-      };
-
-      flights.push(flight);
+    // Small delay between batches to be respectful of rate limits
+    if (i + batchSize < regionQueries.length) {
+      await new Promise((r) => setTimeout(r, 200));
     }
-
-    console.log(`[Military Flights] Found ${flights.length} military aircraft from ADS-B Exchange`);
-    return flights;
-  } catch {
-    // ADS-B Exchange is a supplementary source, don't log errors heavily
-    return [];
   }
+
+  console.log(`[Military Flights] Found ${allFlights.length} military aircraft from ${MILITARY_HOTSPOTS.length} regions`);
+  return allFlights;
 }
+
 
 /**
  * Cluster nearby flights for map display
@@ -422,28 +386,8 @@ export async function fetchMilitaryFlights(): Promise<{
       return { flights: flightCache.data, clusters };
     }
 
-    // Fetch from multiple sources
-    const [openskyFlights, adsbFlights] = await Promise.all([
-      fetchFromOpenSky(),
-      fetchFromADSBExchange(),
-    ]);
-
-    // Merge and deduplicate
-    const flightMap = new Map<string, MilitaryFlight>();
-
-    // OpenSky first (primary source)
-    for (const flight of openskyFlights) {
-      flightMap.set(flight.hexCode, flight);
-    }
-
-    // Add ADSB Exchange flights that aren't duplicates
-    for (const flight of adsbFlights) {
-      if (!flightMap.has(flight.hexCode)) {
-        flightMap.set(flight.hexCode, flight);
-      }
-    }
-
-    const flights = Array.from(flightMap.values());
+    // Fetch from OpenSky (regional queries for efficiency)
+    const flights = await fetchFromOpenSky();
 
     // Update cache
     flightCache = { data: flights, timestamp: Date.now() };

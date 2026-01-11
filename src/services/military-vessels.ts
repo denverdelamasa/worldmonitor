@@ -6,13 +6,13 @@ import {
   getNearbyHotspot,
   MILITARY_HOTSPOTS,
 } from '@/config/military';
-
-// WebSocket relay for live vessel tracking (same as AIS service)
-const AISSTREAM_URL = import.meta.env.VITE_WS_RELAY_URL || 'ws://localhost:3004';
-
-// Check if AIS is configured
-const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
-const aisConfigured = Boolean(import.meta.env.VITE_WS_RELAY_URL) || isLocalhost;
+import {
+  registerAisCallback,
+  unregisterAisCallback,
+  isAisConfigured,
+  initAisStream,
+  type AisPositionData,
+} from './ais';
 
 // Cache for API responses
 let vesselCache: { data: MilitaryVessel[]; timestamp: number } | null = null;
@@ -24,10 +24,8 @@ const HISTORY_MAX_POINTS = 30;
 const HISTORY_CLEANUP_INTERVAL = 10 * 60 * 1000; // 10 minutes
 const VESSEL_STALE_TIME = 60 * 60 * 1000; // 1 hour - consider vessel stale
 
-// WebSocket connection
-let socket: WebSocket | null = null;
-let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
-let isConnected = false;
+// Tracking state
+let isTracking = false;
 let messageCount = 0;
 
 // Circuit breaker
@@ -243,20 +241,13 @@ function getNearbyChokepoint(lat: number, lon: number): string | undefined {
 
 /**
  * Process incoming AIS position report for military vessel detection
+ * Called via callback from shared AIS stream
  */
-function processPositionReport(data: {
-  MetaData: { MMSI: number; ShipName: string; latitude: number; longitude: number; time_utc: string; ShipType?: number };
-  Message: { PositionReport?: { Latitude: number; Longitude: number; Cog?: number; Sog?: number; TrueHeading?: number } };
-}): void {
-  const meta = data.MetaData;
-  const pos = data.Message.PositionReport;
-
-  if (!meta || !pos) return;
-
-  const mmsi = String(meta.MMSI);
-  const name = meta.ShipName || '';
-  const lat = pos.Latitude ?? meta.latitude;
-  const lon = pos.Longitude ?? meta.longitude;
+function processAisPosition(data: AisPositionData): void {
+  const mmsi = data.mmsi;
+  const name = data.name || '';
+  const lat = data.lat;
+  const lon = data.lon;
   const now = Date.now();
 
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
@@ -264,7 +255,7 @@ function processPositionReport(data: {
   // Check if this is a military/government vessel
   const mmsiAnalysis = analyzeMmsi(mmsi);
   const knownVessel = matchKnownVessel(name);
-  const aisType = meta.ShipType ? getVesselTypeFromAis(meta.ShipType) : undefined;
+  const aisType = data.shipType ? getVesselTypeFromAis(data.shipType) : undefined;
 
   // Determine if we should track this vessel
   const isMilitary = knownVessel || mmsiAnalysis.isPotentialMilitary || aisType;
@@ -321,9 +312,9 @@ function processPositionReport(data: {
     operatorCountry,
     lat,
     lon,
-    heading: pos.TrueHeading || pos.Cog || 0,
-    speed: pos.Sog || 0,
-    course: pos.Cog,
+    heading: data.heading || data.course || 0,
+    speed: data.speed || 0,
+    course: data.course,
     lastAisUpdate: new Date(now),
     aisGapMinutes,
     isDark,
@@ -342,67 +333,6 @@ function processPositionReport(data: {
   }
 }
 
-/**
- * Handle incoming WebSocket message
- */
-function handleMessage(event: MessageEvent): void {
-  try {
-    const data = JSON.parse(event.data);
-
-    if (data.MessageType === 'PositionReport') {
-      processPositionReport(data);
-    }
-  } catch {
-    // Ignore parse errors
-  }
-}
-
-/**
- * Connect to AIS WebSocket stream
- */
-function connect(): void {
-  if (socket?.readyState === WebSocket.OPEN) return;
-  if (!aisConfigured) {
-    console.log('[Military Vessels] AIS not configured, skipping WebSocket');
-    return;
-  }
-
-  console.log('[Military Vessels] Connecting to AIS stream...');
-  try {
-    socket = new WebSocket(AISSTREAM_URL);
-
-    socket.onopen = () => {
-      console.log('[Military Vessels] Connected to AIS relay');
-      isConnected = true;
-    };
-
-    socket.onmessage = handleMessage;
-
-    socket.onclose = (event) => {
-      console.log('[Military Vessels] Disconnected:', event.code);
-      isConnected = false;
-      scheduleReconnect();
-    };
-
-    socket.onerror = () => {
-      isConnected = false;
-    };
-  } catch (e) {
-    console.error('[Military Vessels] Connection error:', e);
-    scheduleReconnect();
-  }
-}
-
-/**
- * Schedule reconnection
- */
-function scheduleReconnect(): void {
-  if (reconnectTimeout) return;
-  reconnectTimeout = setTimeout(() => {
-    reconnectTimeout = null;
-    connect();
-  }, 30000);
-}
 
 /**
  * Clean up stale vessels and old history
@@ -481,25 +411,31 @@ if (typeof window !== 'undefined') {
 
 /**
  * Initialize military vessel tracking
+ * Uses shared AIS stream via callback system
  */
 export function initMilitaryVesselStream(): void {
-  console.log('[Military Vessels] Initializing tracking...');
-  connect();
+  if (isTracking) return;
+
+  console.log('[Military Vessels] Initializing tracking via shared AIS stream...');
+
+  // Register callback with shared AIS stream
+  registerAisCallback(processAisPosition);
+  isTracking = true;
+
+  // Ensure AIS stream is running
+  if (isAisConfigured()) {
+    initAisStream();
+  }
 }
 
 /**
  * Disconnect from vessel stream
  */
 export function disconnectMilitaryVesselStream(): void {
-  if (socket) {
-    socket.close();
-    socket = null;
-  }
-  if (reconnectTimeout) {
-    clearTimeout(reconnectTimeout);
-    reconnectTimeout = null;
-  }
-  isConnected = false;
+  if (!isTracking) return;
+
+  unregisterAisCallback(processAisPosition);
+  isTracking = false;
 }
 
 /**
@@ -507,7 +443,7 @@ export function disconnectMilitaryVesselStream(): void {
  */
 export function getMilitaryVesselStatus(): { connected: boolean; vessels: number; messages: number } {
   return {
-    connected: isConnected,
+    connected: isTracking,
     vessels: trackedVessels.size,
     messages: messageCount,
   };
@@ -531,8 +467,8 @@ export async function fetchMilitaryVessels(): Promise<{
     }
 
     // Initialize stream if not running
-    if (!socket && aisConfigured) {
-      connect();
+    if (!isTracking && isAisConfigured()) {
+      initMilitaryVesselStream();
     }
 
     // Clean up old data
@@ -590,5 +526,5 @@ export function getDarkVessels(): MilitaryVessel[] {
  * Check if AIS stream is configured
  */
 export function isMilitaryVesselTrackingConfigured(): boolean {
-  return aisConfigured;
+  return isAisConfigured();
 }

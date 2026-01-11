@@ -47,6 +47,28 @@ let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 let isConnected = false;
 let messageCount = 0;
 
+// Callback system for external listeners (e.g., military vessel tracking)
+export interface AisPositionData {
+  mmsi: string;
+  name: string;
+  lat: number;
+  lon: number;
+  shipType?: number;
+  heading?: number;
+  speed?: number;
+  course?: number;
+}
+type AisCallback = (data: AisPositionData) => void;
+const positionCallbacks = new Set<AisCallback>();
+
+export function registerAisCallback(callback: AisCallback): void {
+  positionCallbacks.add(callback);
+}
+
+export function unregisterAisCallback(callback: AisCallback): void {
+  positionCallbacks.delete(callback);
+}
+
 // Regions of interest for monitoring
 const CHOKEPOINTS = [
   { name: 'Strait of Hormuz', lat: 26.5, lon: 56.5, radius: 2 },
@@ -66,8 +88,8 @@ function getGridKey(lat: number, lon: number): string {
 }
 
 function processPositionReport(data: {
-  MetaData: { MMSI: number; ShipName: string; latitude: number; longitude: number; time_utc: string };
-  Message: { PositionReport?: { Latitude: number; Longitude: number } };
+  MetaData: { MMSI: number; ShipName: string; latitude: number; longitude: number; time_utc: string; ShipType?: number };
+  Message: { PositionReport?: { Latitude: number; Longitude: number; Cog?: number; Sog?: number; TrueHeading?: number } };
 }): void {
   const meta = data.MetaData;
   const pos = data.Message.PositionReport;
@@ -88,7 +110,29 @@ function processPositionReport(data: {
     lat,
     lon,
     timestamp: now,
+    shipType: meta.ShipType,
   });
+
+  // Notify callbacks (for military vessel tracking, etc.)
+  if (positionCallbacks.size > 0) {
+    const callbackData: AisPositionData = {
+      mmsi,
+      name: meta.ShipName || '',
+      lat,
+      lon,
+      shipType: meta.ShipType,
+      heading: pos.TrueHeading,
+      speed: pos.Sog,
+      course: pos.Cog,
+    };
+    for (const callback of positionCallbacks) {
+      try {
+        callback(callbackData);
+      } catch {
+        // Ignore callback errors
+      }
+    }
+  }
 
   // Track vessel history for gap detection
   const history = vesselHistory.get(mmsi) || [];

@@ -1259,7 +1259,7 @@ export class App {
       const hasData = disruptions.length > 0 || density.length > 0;
       this.map?.setLayerReady('ais', hasData);
 
-      this.statusPanel?.updateFeed('Ships', {
+      this.statusPanel?.updateFeed('Shipping', {
         status: aisStatus.connected ? 'ok' : 'error',
         itemCount: disruptions.length + density.length,
         errorMessage: !aisStatus.connected ? 'WebSocket disconnected' : undefined,
@@ -1269,7 +1269,7 @@ export class App {
       });
     } catch (error) {
       this.map?.setLayerReady('ais', false);
-      this.statusPanel?.updateFeed('Ships', { status: 'error', errorMessage: String(error) });
+      this.statusPanel?.updateFeed('Shipping', { status: 'error', errorMessage: String(error) });
       this.statusPanel?.updateApi('AISStream', { status: 'error' });
     }
   }
@@ -1291,7 +1291,7 @@ export class App {
       if (attempts >= maxAttempts) {
         this.map?.setLayerLoading('ais', false);
         this.map?.setLayerReady('ais', false);
-        this.statusPanel?.updateFeed('Ships', {
+        this.statusPanel?.updateFeed('Shipping', {
           status: 'error',
           errorMessage: 'Connection timeout'
         });
