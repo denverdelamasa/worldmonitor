@@ -654,8 +654,9 @@ export class App {
     const economicPanel = new EconomicPanel();
     this.panels['economic'] = economicPanel;
 
-    // Add panels to grid in saved order
-    const defaultOrder = ['politics', 'middleeast', 'tech', 'ai', 'finance', 'layoffs', 'congress', 'heatmap', 'markets', 'commodities', 'economic', 'crypto', 'polymarket', 'gov', 'thinktanks', 'intel', 'monitors'];
+    // Add panels to grid in saved order (optimized for geopolitical analysis)
+    // Row 1: Intel + breaking events | Row 2: Market signals | Row 3: Supporting context
+    const defaultOrder = ['intel', 'politics', 'middleeast', 'gov', 'thinktanks', 'polymarket', 'commodities', 'markets', 'economic', 'finance', 'tech', 'crypto', 'heatmap', 'congress', 'ai', 'layoffs', 'monitors'];
     const savedOrder = this.getSavedPanelOrder();
     // Merge saved order with default to include new panels
     let panelOrder = defaultOrder;

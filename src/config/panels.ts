@@ -1,24 +1,28 @@
 import type { PanelConfig, MapLayers } from '@/types';
 
+// Panel order optimized for geopolitical analysis workflow:
+// Row 1: Intel sources and breaking events
+// Row 2: Market signals and leading indicators
+// Row 3: Supporting context and tracking
 export const DEFAULT_PANELS: Record<string, PanelConfig> = {
   map: { name: 'Global Map', enabled: true, priority: 1 },
+  intel: { name: 'Intel Feed', enabled: true, priority: 1 },
   politics: { name: 'World News', enabled: true, priority: 1 },
   middleeast: { name: 'Middle East', enabled: true, priority: 1 },
-  tech: { name: 'Technology', enabled: true, priority: 1 },
-  ai: { name: 'AI/ML', enabled: true, priority: 1 },
-  finance: { name: 'Financial', enabled: true, priority: 1 },
-  heatmap: { name: 'Sector Heatmap', enabled: true, priority: 1 },
+  gov: { name: 'Government', enabled: true, priority: 1 },
+  thinktanks: { name: 'Think Tanks', enabled: true, priority: 1 },
+  polymarket: { name: 'Predictions', enabled: true, priority: 1 },
+  commodities: { name: 'Commodities', enabled: true, priority: 1 },
   markets: { name: 'Markets', enabled: true, priority: 1 },
-  monitors: { name: 'My Monitors', enabled: true, priority: 1 },
-  commodities: { name: 'Commodities', enabled: true, priority: 2 },
-  polymarket: { name: 'Predictions', enabled: true, priority: 2 },
-  gov: { name: 'Government', enabled: true, priority: 2 },
-  intel: { name: 'Intel Feed', enabled: true, priority: 2 },
+  economic: { name: 'Economic Indicators', enabled: true, priority: 1 },
+  finance: { name: 'Financial', enabled: true, priority: 1 },
+  tech: { name: 'Technology', enabled: true, priority: 2 },
   crypto: { name: 'Crypto', enabled: true, priority: 2 },
-  layoffs: { name: 'Layoffs Tracker', enabled: true, priority: 2 },
+  heatmap: { name: 'Sector Heatmap', enabled: true, priority: 2 },
   congress: { name: 'Congress Trades', enabled: true, priority: 2 },
-  thinktanks: { name: 'Think Tanks', enabled: true, priority: 2 },
-  economic: { name: 'Economic Indicators', enabled: true, priority: 2 },
+  ai: { name: 'AI/ML', enabled: true, priority: 2 },
+  layoffs: { name: 'Layoffs Tracker', enabled: false, priority: 2 },
+  monitors: { name: 'My Monitors', enabled: true, priority: 2 },
 };
 
 export const DEFAULT_MAP_LAYERS: MapLayers = {
