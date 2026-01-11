@@ -1,8 +1,5 @@
 export const config = { runtime: 'edge' };
 
-// Token cache for OAuth2
-let tokenCache = { token: null, expiresAt: 0 };
-
 // Fetch with timeout
 async function fetchWithTimeout(url, options, timeoutMs = 15000) {
   const controller = new AbortController();
@@ -15,41 +12,12 @@ async function fetchWithTimeout(url, options, timeoutMs = 15000) {
   }
 }
 
-async function getAccessToken() {
-  const clientId = process.env.OPENSKY_CLIENT_ID;
-  const clientSecret = process.env.OPENSKY_CLIENT_SECRET;
-
-  if (!clientId || !clientSecret) return null;
-
-  // Return cached token if still valid (with 60s buffer)
-  if (tokenCache.token && Date.now() < tokenCache.expiresAt - 60000) {
-    return tokenCache.token;
-  }
-
-  try {
-    const response = await fetchWithTimeout('https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        grant_type: 'client_credentials',
-        client_id: clientId,
-        client_secret: clientSecret,
-      }),
-    }, 5000); // 5s timeout for auth
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    tokenCache = {
-      token: data.access_token,
-      expiresAt: Date.now() + (data.expires_in * 1000),
-    };
-    return tokenCache.token;
-  } catch {
-    return null;
-  }
+// Get Basic Auth header if credentials available
+function getAuthHeader() {
+  const username = process.env.OPENSKY_USERNAME;
+  const password = process.env.OPENSKY_PASSWORD;
+  if (!username || !password) return null;
+  return 'Basic ' + btoa(`${username}:${password}`);
 }
 
 export default async function handler(req) {
@@ -70,15 +38,15 @@ export default async function handler(req) {
   const openskyUrl = `https://opensky-network.org/api/states/all${params.toString() ? '?' + params.toString() : ''}`;
 
   try {
-    // Get OAuth token if credentials configured
-    const token = await getAccessToken();
+    // Use Basic Auth (sync) instead of OAuth (slow async token fetch)
+    const authHeader = getAuthHeader();
 
     const response = await fetchWithTimeout(openskyUrl, {
       headers: {
         'Accept': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
+        ...(authHeader && { 'Authorization': authHeader }),
       },
-    }, 12000); // 12s timeout for data fetch
+    }, 10000); // 10s timeout
 
     if (response.status === 429) {
       return new Response(JSON.stringify({ error: 'Rate limited', time: Date.now(), states: null }), {
