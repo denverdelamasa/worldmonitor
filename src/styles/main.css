@@ -3495,6 +3495,8 @@ body.playback-mode .status-dot {
 .status-row .status-dot.ok { background: var(--green); }
 .status-row .status-dot.warning { background: var(--yellow); }
 .status-row .status-dot.error { background: var(--red); }
+.status-row .status-dot.disabled { background: #555; }
+.status-row:has(.status-dot.disabled) { opacity: 0.5; }
 
 .status-name {
   flex: 1;

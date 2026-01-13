@@ -1,16 +1,18 @@
 import { escapeHtml } from '@/utils/sanitize';
 
+type StatusLevel = 'ok' | 'warning' | 'error' | 'disabled';
+
 interface FeedStatus {
   name: string;
   lastUpdate: Date | null;
-  status: 'ok' | 'warning' | 'error';
+  status: StatusLevel;
   itemCount: number;
   errorMessage?: string;
 }
 
 interface ApiStatus {
   name: string;
-  status: 'ok' | 'warning' | 'error';
+  status: StatusLevel;
   latency?: number;
 }
 
@@ -75,18 +77,19 @@ export class StatusPanel {
 
   private initDefaultStatuses(): void {
     // Names must match what App.ts sends: category.charAt(0).toUpperCase() + category.slice(1)
+    // Default to 'disabled' - only show status when layer is enabled and data is fetched
     const feedNames = [
       'Politics', 'Middleeast', 'Tech', 'Ai', 'Finance',
       'Gov', 'Intel', 'Layoffs', 'Thinktanks',
       'Polymarket', 'Weather', 'NetBlocks', 'Shipping'
     ];
     feedNames.forEach(name => {
-      this.feeds.set(name, { name, lastUpdate: null, status: 'warning', itemCount: 0 });
+      this.feeds.set(name, { name, lastUpdate: null, status: 'disabled', itemCount: 0 });
     });
 
     const apiNames = ['RSS2JSON', 'Finnhub', 'CoinGecko', 'Polymarket', 'USGS', 'FRED', 'AISStream', 'GDELT Doc'];
     apiNames.forEach(name => {
-      this.apis.set(name, { name, status: 'warning' });
+      this.apis.set(name, { name, status: 'disabled' });
     });
   }
 
@@ -104,12 +107,34 @@ export class StatusPanel {
     if (this.isOpen) this.updateDisplay();
   }
 
+  public setFeedDisabled(name: string): void {
+    const existing = this.feeds.get(name);
+    if (existing) {
+      this.feeds.set(name, { ...existing, status: 'disabled', itemCount: 0, lastUpdate: null });
+      this.updateStatusIcon();
+      if (this.isOpen) this.updateDisplay();
+    }
+  }
+
+  public setApiDisabled(name: string): void {
+    const existing = this.apis.get(name);
+    if (existing) {
+      this.apis.set(name, { ...existing, status: 'disabled' });
+      this.updateStatusIcon();
+      if (this.isOpen) this.updateDisplay();
+    }
+  }
+
   private updateStatusIcon(): void {
     const icon = this.element.querySelector('.status-icon')!;
-    const hasError = [...this.feeds.values()].some(f => f.status === 'error') ||
-                     [...this.apis.values()].some(a => a.status === 'error');
-    const hasWarning = [...this.feeds.values()].some(f => f.status === 'warning') ||
-                       [...this.apis.values()].some(a => a.status === 'warning');
+    // Only count enabled feeds/APIs (not 'disabled') for status indicator
+    const enabledFeeds = [...this.feeds.values()].filter(f => f.status !== 'disabled');
+    const enabledApis = [...this.apis.values()].filter(a => a.status !== 'disabled');
+
+    const hasError = enabledFeeds.some(f => f.status === 'error') ||
+                     enabledApis.some(a => a.status === 'error');
+    const hasWarning = enabledFeeds.some(f => f.status === 'warning') ||
+                       enabledApis.some(a => a.status === 'warning');
 
     icon.className = 'status-icon';
     if (hasError) {
