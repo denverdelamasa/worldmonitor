@@ -1109,6 +1109,14 @@ export class App {
       panelOrder = valid;
     }
 
+    // CRITICAL: live-news MUST be first for CSS Grid layout (spans 2 columns)
+    // Move it to position 0 if it exists and isn't already first
+    const liveNewsIdx = panelOrder.indexOf('live-news');
+    if (liveNewsIdx > 0) {
+      panelOrder.splice(liveNewsIdx, 1);
+      panelOrder.unshift('live-news');
+    }
+
     panelOrder.forEach((key: string) => {
       const panel = this.panels[key];
       if (panel) {
