@@ -47,6 +47,8 @@ import {
   CLOUD_REGIONS,
   PORTS,
   SPACEPORTS,
+  APT_GROUPS,
+  CRITICAL_MINERALS,
 } from '@/config';
 import { MapPopup, type PopupType } from './MapPopup';
 import {
@@ -664,6 +666,16 @@ export class DeckGLMap {
       layers.push(this.createEconomicCentersLayer());
     }
 
+    // Critical minerals layer
+    if (mapLayers.minerals) {
+      layers.push(this.createMineralsLayer());
+    }
+
+    // APT Groups layer (geopolitical variant only - always shown, no toggle)
+    if (SITE_VARIANT !== 'tech') {
+      layers.push(this.createAPTGroupsLayer());
+    }
+
     // Tech variant layers
     // Note: techHQs and techEvents are rendered via HTML overlays for clustering support
     if (SITE_VARIANT === 'tech') {
@@ -1070,6 +1082,46 @@ export class DeckGLMap {
     });
   }
 
+  private createAPTGroupsLayer(): ScatterplotLayer {
+    // APT Groups - cyber threat actor markers (geopolitical variant only)
+    return new ScatterplotLayer({
+      id: 'apt-groups-layer',
+      data: APT_GROUPS,
+      getPosition: (d) => [d.lon, d.lat],
+      getRadius: 15000,
+      getFillColor: [255, 50, 50, 200] as [number, number, number, number], // Red warning color
+      radiusMinPixels: 8,
+      radiusMaxPixels: 16,
+      pickable: true,
+      stroked: true,
+      getLineColor: [255, 255, 0, 200] as [number, number, number, number], // Yellow outline
+      lineWidthMinPixels: 2,
+    });
+  }
+
+  private createMineralsLayer(): ScatterplotLayer {
+    // Critical minerals projects
+    return new ScatterplotLayer({
+      id: 'minerals-layer',
+      data: CRITICAL_MINERALS,
+      getPosition: (d) => [d.lon, d.lat],
+      getRadius: 8000,
+      getFillColor: (d) => {
+        // Color by mineral type
+        switch (d.mineral) {
+          case 'Lithium': return [0, 200, 255, 200] as [number, number, number, number]; // Cyan
+          case 'Cobalt': return [100, 100, 255, 200] as [number, number, number, number]; // Blue
+          case 'Rare Earths': return [255, 100, 200, 200] as [number, number, number, number]; // Pink
+          case 'Nickel': return [100, 255, 100, 200] as [number, number, number, number]; // Green
+          default: return [200, 200, 200, 200] as [number, number, number, number]; // Gray
+        }
+      },
+      radiusMinPixels: 5,
+      radiusMaxPixels: 12,
+      pickable: true,
+    });
+  }
+
   // Tech variant layers
   private createStartupHubsLayer(): ScatterplotLayer {
     return new ScatterplotLayer({
@@ -1227,6 +1279,14 @@ export class DeckGLMap {
       return { html: `<div class="deckgl-tooltip"><strong>${obj.airport || ''}</strong><br/>${obj.severity || ''}: ${obj.reason || ''}</div>` };
     }
 
+    if (layerId === 'apt-groups-layer') {
+      return { html: `<div class="deckgl-tooltip"><strong>${obj.name || ''}</strong><br/>${obj.aka || ''}<br/>Sponsor: ${obj.sponsor || ''}</div>` };
+    }
+
+    if (layerId === 'minerals-layer') {
+      return { html: `<div class="deckgl-tooltip"><strong>${obj.name || ''}</strong><br/>${obj.mineral || ''} - ${obj.country || ''}<br/>${obj.operator || ''}</div>` };
+    }
+
     return null;
   }
 
@@ -1269,6 +1329,8 @@ export class DeckGLMap {
       'accelerators-layer': 'accelerator',
       'cloud-regions-layer': 'cloudRegion',
       'tech-events-layer': 'techEvent',
+      'apt-groups-layer': 'apt',
+      'minerals-layer': 'mineral',
     };
 
     const popupType = layerToPopupType[layerId];
@@ -1405,6 +1467,7 @@ export class DeckGLMap {
           { key: 'natural', label: 'Natural Events', icon: '&#127755;' },
           { key: 'waterways', label: 'Strategic Waterways', icon: '&#9875;' },
           { key: 'economic', label: 'Economic Centers', icon: '&#128176;' },
+          { key: 'minerals', label: 'Critical Minerals', icon: '&#128142;' },
         ];
 
     toggles.innerHTML = `
