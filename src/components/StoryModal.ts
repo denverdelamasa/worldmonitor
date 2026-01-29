@@ -107,10 +107,13 @@ function shareWhatsApp(countryName: string): void {
 
 function openWhatsApp(text: string): void {
   const encoded = encodeURIComponent(text);
-  window.open(`whatsapp://send?text=${encoded}`, '_self');
+  const t0 = Date.now();
+  window.location.href = `whatsapp://send?text=${encoded}`;
   setTimeout(() => {
-    window.open(`https://wa.me/?text=${encoded}`, '_blank');
-  }, 500);
+    if (Date.now() - t0 < 1500 && !document.hidden) {
+      window.open(`https://wa.me/?text=${encoded}`, '_blank');
+    }
+  }, 1000);
 }
 
 async function shareInstagram(countryName: string): Promise<void> {
