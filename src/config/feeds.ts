@@ -654,7 +654,7 @@ export const INTEL_SOURCES: Feed[] = [
   { name: 'CSIS', url: rss('https://www.csis.org/analysis?type=analysis'), type: 'defense' },
 
   // International Relations (Tier 2)
-  { name: 'Chatham House', url: rss('https://www.chathamhouse.org/rss.xml'), type: 'intl' },
+  { name: 'Chatham House', url: rss('https://news.google.com/rss/search?q=site:chathamhouse.org+when:7d&hl=en-US&gl=US&ceid=US:en'), type: 'intl' },
   { name: 'ECFR', url: rss('https://ecfr.eu/feed/'), type: 'intl' },
   { name: 'Foreign Policy', url: rss('https://foreignpolicy.com/feed/'), type: 'intl' },
   { name: 'Foreign Affairs', url: rss('https://www.foreignaffairs.com/rss.xml'), type: 'intl' },
@@ -673,7 +673,7 @@ export const INTEL_SOURCES: Feed[] = [
   { name: 'Krebs Security', url: rss('https://krebsonsecurity.com/feed/'), type: 'cyber' },
 
   // Economic & Food Security (Tier 2)
-  { name: 'FAO Food Price Monitor', url: rss('https://fpma.fao.org/giews/fpmat4/rss.xml'), type: 'economic' },
+  { name: 'FAO News', url: rss('https://www.fao.org/rss/home/en/'), type: 'economic' },
 ];
 
 // Keywords that trigger alert status - must be specific to avoid false positives

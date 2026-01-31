@@ -149,7 +149,7 @@ const ALLOWED_DOMAINS = [
   'www.nti.org',
   'thebulletin.org',
   // Economic & Food Security
-  'fpma.fao.org',
+  'www.fao.org',
   'worldbank.org',
   'www.imf.org',
   // Additional
