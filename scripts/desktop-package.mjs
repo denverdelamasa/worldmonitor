@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
+import path from 'node:path';
 
 const args = process.argv.slice(2);
 
@@ -37,6 +38,7 @@ if (!validVariants.has(variant)) {
 const bundles = os === 'macos' ? 'app,dmg' : 'nsis,msi';
 const env = { ...process.env, VITE_VARIANT: variant };
 const cliArgs = ['build', '--bundles', bundles];
+const tauriBin = path.join('node_modules', '.bin', process.platform === 'win32' ? 'tauri.cmd' : 'tauri');
 
 if (variant === 'tech') {
   cliArgs.push('--config', 'src-tauri/tauri.tech.conf.json');
@@ -68,7 +70,7 @@ if (sign) {
 
 console.log(`[desktop-package] OS=${os} VARIANT=${variant} BUNDLES=${bundles} SIGN=${sign ? 'on' : 'off'}`);
 
-const result = spawnSync('tauri', cliArgs, {
+const result = spawnSync(tauriBin, cliArgs, {
   env,
   stdio: 'inherit',
   shell: process.platform === 'win32'

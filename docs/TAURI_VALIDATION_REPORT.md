@@ -5,10 +5,10 @@ Validated desktop build readiness for the World Monitor Tauri app by checking fr
 
 ## Commands run
 
-1. `npm ci` — succeeded.
+1. `npm ci` — failed because the environment blocks downloading the pinned `@tauri-apps/cli` package from npm (`403 Forbidden`).
 2. `npm run typecheck` — succeeded.
 3. `npm run build:full` — succeeded (warnings only).
-4. `npm run desktop:build:full` — failed because the environment cannot install the pinned `@tauri-apps/cli` dependency from npm during `npm ci` (`403 Forbidden`), so the local `tauri` binary was unavailable.
+4. `npm run desktop:build:full` — not runnable in this environment because `npm ci` failed, so the local `tauri` binary was unavailable.
 5. `cargo check` (from `src-tauri/`) — failed because the environment blocks downloading crates from `https://index.crates.io` (`403 CONNECT tunnel failed`).
 
 ## Assessment
