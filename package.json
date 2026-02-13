@@ -20,9 +20,9 @@
     "test:e2e:visual:update:full": "VITE_VARIANT=full playwright test -g \"matches golden screenshots per layer and zoom\" --update-snapshots",
     "test:e2e:visual:update:tech": "VITE_VARIANT=tech playwright test -g \"matches golden screenshots per layer and zoom\" --update-snapshots",
     "test:e2e:visual:update": "npm run test:e2e:visual:update:full && npm run test:e2e:visual:update:tech",
-    "desktop:dev": "npx @tauri-apps/cli dev",
-    "desktop:build:full": "VITE_VARIANT=full npx @tauri-apps/cli build",
-    "desktop:build:tech": "VITE_VARIANT=tech npx @tauri-apps/cli build --config src-tauri/tauri.tech.conf.json",
+    "desktop:dev": "tauri dev",
+    "desktop:build:full": "VITE_VARIANT=full tauri build",
+    "desktop:build:tech": "VITE_VARIANT=tech tauri build --config src-tauri/tauri.tech.conf.json",
     "desktop:package:macos:full": "node scripts/desktop-package.mjs --os macos --variant full",
     "desktop:package:macos:tech": "node scripts/desktop-package.mjs --os macos --variant tech",
     "desktop:package:windows:full": "node scripts/desktop-package.mjs --os windows --variant full",
@@ -41,7 +41,8 @@
     "@types/topojson-specification": "^1.0.5",
     "typescript": "^5.7.2",
     "vite": "^6.0.7",
-    "ws": "^8.19.0"
+    "ws": "^8.19.0",
+    "@tauri-apps/cli": "2.0.0"
   },
   "dependencies": {
     "@deck.gl/aggregation-layers": "^9.2.6",

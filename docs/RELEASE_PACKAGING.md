@@ -18,11 +18,13 @@ Variant identity is controlled by Tauri config:
   - macOS: Xcode command-line tools
   - Windows: Visual Studio Build Tools + NSIS + WiX
 
-Install dependencies:
+Install dependencies (this also installs the pinned Tauri CLI used by desktop scripts):
 
 ```bash
 npm ci
 ```
+
+All desktop scripts call the local `tauri` binary from `node_modules/.bin`; no runtime `npx` package download is required after `npm ci`.
 
 ## Packaging commands
 
