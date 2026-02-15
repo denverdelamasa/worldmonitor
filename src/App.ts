@@ -610,12 +610,20 @@ export class App {
 
     // Pass evidence headlines
     const searchTerms = App.getCountrySearchTerms(country, code);
+    const otherCountryTerms = App.getOtherCountryTerms(code);
     const matchingNews = this.allNews.filter((n) => {
       const t = n.title.toLowerCase();
       return searchTerms.some((term) => t.includes(term));
     });
-    if (matchingNews.length > 0) {
-      this.countryBriefPage.updateEvidence(matchingNews.slice(0, 15));
+    const filteredNews = matchingNews.filter((n) => {
+      const t = n.title.toLowerCase();
+      const ourPos = App.firstMentionPosition(t, searchTerms);
+      const otherPos = App.firstMentionPosition(t, otherCountryTerms);
+      return ourPos !== Infinity && (otherPos === Infinity || ourPos <= otherPos);
+    });
+    if (filteredNews.length > 0) {
+      this.countryBriefPage.updateNews(filteredNews.slice(0, 5));
+      this.countryBriefPage.updateEvidence(filteredNews.slice(0, 15));
     }
 
     // Infrastructure exposure
@@ -647,7 +655,7 @@ export class App {
         context.regionalConvergence = convergences.map((r) => r.description);
       }
 
-      const headlines = matchingNews.slice(0, 15).map((n) => n.title);
+      const headlines = filteredNews.slice(0, 15).map((n) => n.title);
       if (headlines.length) context.headlines = headlines;
 
       const stockData = await stockPromise;
@@ -824,6 +832,35 @@ export class App {
     US: ['united states', 'american', 'washington', 'pentagon', 'white house'],
     GB: ['united kingdom', 'british', 'london', 'uk '],
   };
+
+  private static otherCountryTermsCache: Map<string, string[]> = new Map();
+
+  private static firstMentionPosition(text: string, terms: string[]): number {
+    let earliest = Infinity;
+    for (const term of terms) {
+      const idx = text.indexOf(term);
+      if (idx !== -1 && idx < earliest) earliest = idx;
+    }
+    return earliest;
+  }
+
+  private static getOtherCountryTerms(code: string): string[] {
+    const cached = App.otherCountryTermsCache.get(code);
+    if (cached) return cached;
+
+    const dedup = new Set<string>();
+    Object.entries(App.COUNTRY_ALIASES).forEach(([countryCode, aliases]) => {
+      if (countryCode === code) return;
+      aliases.forEach((alias) => {
+        const normalized = alias.toLowerCase();
+        if (normalized.trim().length > 0) dedup.add(normalized);
+      });
+    });
+
+    const terms = [...dedup];
+    App.otherCountryTermsCache.set(code, terms);
+    return terms;
+  }
 
   private static getCountrySearchTerms(country: string, code: string): string[] {
     const aliases = App.COUNTRY_ALIASES[code];

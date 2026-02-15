@@ -290,6 +290,11 @@ export class CountryBriefPage {
                 </div>
               </section>
 
+              <section class="cb-section cb-news-section" style="display:none">
+                <h3 class="cb-section-title">Top News</h3>
+                <div class="cb-news-content"></div>
+              </section>
+
               <section class="cb-section cb-markets-section">
                 <h3 class="cb-section-title">Prediction Markets</h3>
                 <div class="cb-markets-content">
@@ -409,7 +414,7 @@ export class CountryBriefPage {
       return;
     }
 
-    section.innerHTML = markets.map(m => {
+    section.innerHTML = markets.slice(0, 3).map(m => {
       const pct = Math.round(m.yesPrice);
       const noPct = 100 - pct;
       const vol = m.volume ? `$${(m.volume / 1000).toFixed(0)}k vol` : '';
@@ -442,6 +447,34 @@ export class CountryBriefPage {
     const arrow = pct >= 0 ? '📈' : '📉';
     el.className = `signal-chip stock ${cls}`;
     el.innerHTML = `${arrow} ${escapeHtml(data.indexName)}: ${sign}${data.weekChangePercent}% (1W)`;
+  }
+
+  public updateNews(headlines: NewsItem[]): void {
+    const section = this.overlay.querySelector('.cb-news-section') as HTMLElement | null;
+    const content = this.overlay.querySelector('.cb-news-content');
+    if (!section || !content || headlines.length === 0) return;
+
+    const items = headlines.slice(0, 5);
+    section.style.display = '';
+
+    content.innerHTML = items.map((item) => {
+      const safeUrl = sanitizeUrl(item.link);
+      const threatColor = item.threat?.level === 'critical' ? '#ff4444'
+        : item.threat?.level === 'high' ? '#ff8800'
+        : item.threat?.level === 'medium' ? '#ffaa00'
+        : '#64b4ff';
+      const timeAgo = this.timeAgo(item.pubDate);
+      const cardBody = `
+        <span class="cb-news-threat" style="background:${threatColor}"></span>
+        <div class="cb-news-body">
+          <div class="cb-news-title">${escapeHtml(item.title)}</div>
+          <div class="cb-news-meta">${escapeHtml(item.source)} · ${timeAgo}</div>
+        </div>`;
+      if (safeUrl) {
+        return `<a href="${safeUrl}" target="_blank" rel="noopener" class="cb-news-card">${cardBody}</a>`;
+      }
+      return `<div class="cb-news-card">${cardBody}</div>`;
+    }).join('');
   }
 
   public updateEvidence(headlines: NewsItem[]): void {
