@@ -15,6 +15,7 @@ body:
       options:
         - worldmonitor.app (Full / Geopolitical)
         - tech.worldmonitor.app (Tech / Startup)
+        - finance.worldmonitor.app (Finance)
         - Desktop app (Windows)
         - Desktop app (macOS)
     validations:

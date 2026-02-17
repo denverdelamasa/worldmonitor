@@ -30,7 +30,8 @@ body:
       options:
         - Full (Geopolitical)
         - Tech (Startup)
-        - Both
+        - Finance
+        - All variants
     validations:
       required: true
 
