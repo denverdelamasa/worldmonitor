@@ -243,6 +243,12 @@ export class LiveWebcamsPanel extends Panel {
     const switcher = document.createElement('div');
     switcher.className = 'webcam-switcher';
 
+    const backBtn = document.createElement('button');
+    backBtn.className = 'webcam-feed-btn webcam-back-btn';
+    backBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg> Grid';
+    backBtn.addEventListener('click', () => this.setViewMode('grid'));
+    switcher.appendChild(backBtn);
+
     this.filteredFeeds.forEach(feed => {
       const btn = document.createElement('button');
       btn.className = `webcam-feed-btn${feed.id === this.activeFeed.id ? ' active' : ''}`;
@@ -298,6 +304,10 @@ export class LiveWebcamsPanel extends Panel {
 
     this.boundIdleResetHandler = () => {
       if (this.idleTimeout) clearTimeout(this.idleTimeout);
+      if (this.isIdle) {
+        this.isIdle = false;
+        if (this.isVisible) this.render();
+      }
       this.idleTimeout = setTimeout(() => {
         this.isIdle = true;
         this.destroyIframes();

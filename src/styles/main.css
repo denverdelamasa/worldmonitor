@@ -1543,6 +1543,14 @@ canvas,
   color: white;
 }
 
+.webcam-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-color: var(--text-dim);
+  margin-right: 4px;
+}
+
 .webcam-placeholder {
   display: flex;
   align-items: center;
