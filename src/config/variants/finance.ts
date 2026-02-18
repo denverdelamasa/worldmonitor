@@ -23,6 +23,12 @@ export {
 import type { Feed } from '@/types';
 
 const rss = (url: string) => `/api/rss-proxy?url=${encodeURIComponent(url)}`;
+const wsRelayUrl = import.meta.env.VITE_WS_RELAY_URL || '';
+const railwayBaseUrl = wsRelayUrl
+  ? wsRelayUrl.replace('wss://', 'https://').replace('ws://', 'http://').replace(/\/$/, '')
+  : '';
+const railwayRss = (url: string) =>
+  railwayBaseUrl ? `${railwayBaseUrl}/rss?url=${encodeURIComponent(url)}` : rss(url);
 
 export const FEEDS: Record<string, Feed[]> = {
   // Core Markets & Trading News (all free RSS / Google News proxies)
@@ -34,6 +40,7 @@ export const FEEDS: Record<string, Feed[]> = {
     { name: 'Reuters Markets', url: rss('https://news.google.com/rss/search?q=site:reuters.com+markets+stocks+when:1d&hl=en-US&gl=US&ceid=US:en') },
     { name: 'Bloomberg Markets', url: rss('https://news.google.com/rss/search?q=site:bloomberg.com+markets+when:1d&hl=en-US&gl=US&ceid=US:en') },
     { name: 'Investing.com', url: rss('https://news.google.com/rss/search?q=site:investing.com+markets+when:1d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'Nikkei Asia', url: railwayRss('https://asia.nikkei.com/rss/feed/nar') },
   ],
 
   // Forex & Currencies

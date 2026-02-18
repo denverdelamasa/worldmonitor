@@ -56,6 +56,7 @@ const ALLOWED_DOMAINS = [
   'www.reutersagency.com',
   'feeds.reuters.com',
   'rsshub.app',
+  'asia.nikkei.com',
   'www.cfr.org',
   'www.csis.org',
   'www.politico.com',

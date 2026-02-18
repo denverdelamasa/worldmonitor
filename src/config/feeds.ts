@@ -116,6 +116,8 @@ export const SOURCE_TIERS: Record<string, number> = {
   'The Bridge (Japan)': 3,
   'Japan Tech News': 3,
   'Nikkei Tech': 2,
+  'NHK World': 2,
+  'Nikkei Asia': 2,
   'Korea Tech News': 3,
   'KED Global': 3,
   'Entrackr (India)': 3,
@@ -239,6 +241,7 @@ export const SOURCE_TYPES: Record<string, SourceType> = {
   'CSIS': 'intel', 'RAND': 'intel', 'Brookings': 'intel', 'Carnegie': 'intel',
   'IAEA': 'gov', 'WHO': 'gov', 'UNHCR': 'gov',
   'Xinhua': 'wire', 'TASS': 'wire',
+  'NHK World': 'mainstream', 'Nikkei Asia': 'market',
 
   // Mainstream outlets
   'BBC World': 'mainstream', 'BBC Middle East': 'mainstream',
@@ -456,6 +459,8 @@ const FULL_FEEDS: Record<string, Feed[]> = {
     { name: 'BBC Asia', url: rss('https://feeds.bbci.co.uk/news/world/asia/rss.xml') },
     { name: 'South China Morning Post', url: railwayRss('https://www.scmp.com/rss/91/feed/') },
     { name: 'Reuters Asia', url: rss('https://news.google.com/rss/search?q=site:reuters.com+(China+OR+Japan+OR+Taiwan+OR+Korea)+when:3d&hl=en-US&gl=US&ceid=US:en') },
+    { name: 'NHK World', url: rss('https://rsshub.app/nhk/news/en') },
+    { name: 'Nikkei Asia', url: railwayRss('https://asia.nikkei.com/rss/feed/nar') },
     { name: 'MIIT (China)', url: rss('https://rsshub.app/gov/miit/zcjd') },
     { name: 'MOFCOM (China)', url: rss('https://rsshub.app/gov/mofcom/article/xwfb') },
   ],
