@@ -3789,10 +3789,12 @@ export class App {
       this.map?.setCyberThreats(threats);
       this.map?.setLayerReady('cyberThreats', threats.length > 0);
       this.statusPanel?.updateFeed('Cyber Threats', { status: 'ok', itemCount: threats.length });
+      this.statusPanel?.updateApi('Cyber Threats API', { status: 'ok' });
       dataFreshness.recordUpdate('cyber_threats', threats.length);
     } catch (error) {
       this.map?.setLayerReady('cyberThreats', false);
       this.statusPanel?.updateFeed('Cyber Threats', { status: 'error', errorMessage: String(error) });
+      this.statusPanel?.updateApi('Cyber Threats API', { status: 'error' });
       dataFreshness.recordError('cyber_threats', String(error));
     }
   }
@@ -3893,7 +3895,7 @@ export class App {
       } else if (status.acledConfigured === null) {
         this.statusPanel?.updateApi('ACLED', { status: 'warning' });
       }
-      this.statusPanel?.updateApi('GDELT', { status: 'ok' });
+      this.statusPanel?.updateApi('GDELT Doc', { status: 'ok' });
       return;
     }
     try {
@@ -3919,12 +3921,12 @@ export class App {
       } else if (status.acledConfigured === null) {
         this.statusPanel?.updateApi('ACLED', { status: 'warning' });
       }
-      this.statusPanel?.updateApi('GDELT', { status: 'ok' });
+      this.statusPanel?.updateApi('GDELT Doc', { status: 'ok' });
     } catch (error) {
       this.map?.setLayerReady('protests', false);
       this.statusPanel?.updateFeed('Protests', { status: 'error', errorMessage: String(error) });
       this.statusPanel?.updateApi('ACLED', { status: 'error' });
-      this.statusPanel?.updateApi('GDELT', { status: 'error' });
+      this.statusPanel?.updateApi('GDELT Doc', { status: 'error' });
     }
   }
 
@@ -4100,8 +4102,10 @@ export class App {
     try {
       const data = await fetchOilAnalytics();
       economicPanel?.updateOil(data);
+      this.statusPanel?.updateApi('EIA', { status: 'ok' });
     } catch (e) {
       console.error('[App] Oil analytics failed:', e);
+      this.statusPanel?.updateApi('EIA', { status: 'error' });
     }
   }
 
@@ -4110,8 +4114,10 @@ export class App {
     try {
       const data = await fetchRecentAwards({ daysBack: 7, limit: 15 });
       economicPanel?.updateSpending(data);
+      this.statusPanel?.updateApi('USASpending', { status: 'ok' });
     } catch (e) {
       console.error('[App] Government spending failed:', e);
+      this.statusPanel?.updateApi('USASpending', { status: 'error' });
     }
   }
 
