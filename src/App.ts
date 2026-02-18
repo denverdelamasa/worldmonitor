@@ -174,6 +174,7 @@ export class App {
   private criticalBannerEl: HTMLElement | null = null;
   private countryBriefPage: CountryBriefPage | null = null;
   private countryTimeline: CountryTimeline | null = null;
+  private findingsBadge: IntelligenceGapBadge | null = null;
   private pendingDeepLinkCountry: string | null = null;
   private briefRequestToken = 0;
   private readonly isDesktopApp = isDesktopRuntime();
@@ -313,12 +314,12 @@ export class App {
     this.signalModal.setLocationClickHandler((lat, lon) => {
       this.map?.setCenter(lat, lon, 4);
     });
-    const findingsBadge = new IntelligenceGapBadge();
-    findingsBadge.setOnSignalClick((signal) => {
+    this.findingsBadge = new IntelligenceGapBadge();
+    this.findingsBadge.setOnSignalClick((signal) => {
       if (this.countryBriefPage?.isVisible()) return;
       this.signalModal?.showSignal(signal);
     });
-    findingsBadge.setOnAlertClick((alert) => {
+    this.findingsBadge.setOnAlertClick((alert) => {
       if (this.countryBriefPage?.isVisible()) return;
       this.signalModal?.showAlert(alert);
     });
@@ -2693,7 +2694,7 @@ export class App {
 
   private renderPanelToggles(): void {
     const container = document.getElementById('panelToggles')!;
-    container.innerHTML = Object.entries(this.panelSettings)
+    const panelHtml = Object.entries(this.panelSettings)
       .filter(([key]) => key !== 'runtime-config' || this.isDesktopApp)
       .map(
         ([key, panel]) => `
@@ -2705,9 +2706,26 @@ export class App {
       )
       .join('');
 
+    const findingsEnabled = this.findingsBadge?.isEnabled() ?? IntelligenceGapBadge.getStoredEnabledState();
+    const findingsHtml = `
+      <div class="panel-toggle-item ${findingsEnabled ? 'active' : ''}" data-panel="intel-findings">
+        <div class="panel-toggle-checkbox">${findingsEnabled ? '✓' : ''}</div>
+        <span class="panel-toggle-label">Intelligence Findings</span>
+      </div>
+    `;
+
+    container.innerHTML = panelHtml + findingsHtml;
+
     container.querySelectorAll('.panel-toggle-item').forEach((item) => {
       item.addEventListener('click', () => {
         const panelKey = (item as HTMLElement).dataset.panel!;
+
+        if (panelKey === 'intel-findings') {
+          this.findingsBadge?.setEnabled(!this.findingsBadge.isEnabled());
+          this.renderPanelToggles();
+          return;
+        }
+
         const config = this.panelSettings[panelKey];
         console.log('[Panel Toggle] Clicked:', panelKey, 'Current enabled:', config?.enabled);
         if (config) {

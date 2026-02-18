@@ -451,21 +451,27 @@ function pushSignal(signal: CorrelationSignal): void {
 
 function isLikelyProperNoun(term: string, headlines: StoredHeadline[]): boolean {
   if (term.includes(' ') && term.length > 5) return true;
-  if (/^\d/.test(term) || /[A-Z]{2,}/.test(term)) return true;
+  if (/^\d/.test(term)) return true;
 
   const titles = headlines.slice(0, 8).map(h => h.title);
   const termRe = new RegExp(`\\b${escapeRegex(term)}\\b`, 'gi');
   let capitalizedCount = 0;
-  let totalCount = 0;
+  let midSentenceCount = 0;
   for (const title of titles) {
-    const matches = title.matchAll(termRe);
-    for (const m of matches) {
-      totalCount++;
+    for (const m of title.matchAll(termRe)) {
       const idx = m.index ?? 0;
-      if (idx > 0 && /[A-Z]/.test(title[idx]!)) capitalizedCount++;
+      if (idx === 0) continue;
+      midSentenceCount++;
+      if (/[A-Z]/.test(title[idx]!)) capitalizedCount++;
     }
   }
-  return totalCount > 0 && capitalizedCount / totalCount >= 0.5;
+  if (midSentenceCount === 0) {
+    return titles.some(t => {
+      const allCaps = t.match(new RegExp(`\\b${escapeRegex(term)}\\b`, 'gi'));
+      return allCaps?.some(match => match === match.toUpperCase() && match.length >= 2);
+    });
+  }
+  return capitalizedCount / midSentenceCount >= 0.5;
 }
 
 async function isSignificantTerm(term: string, headlines: StoredHeadline[]): Promise<boolean> {
