@@ -103,10 +103,18 @@ function canCompress(headers, body) {
   return body.length > 1024 && !headers['content-encoding'];
 }
 
+function appendVary(existing, token) {
+  const value = typeof existing === 'string' ? existing : '';
+  const parts = value.split(',').map((p) => p.trim()).filter(Boolean);
+  if (!parts.some((p) => p.toLowerCase() === token.toLowerCase())) {
+    parts.push(token);
+  }
+  return parts.join(', ');
+}
+
 async function maybeCompressResponseBody(body, headers, acceptEncoding = '') {
   if (!canCompress(headers, body)) return body;
-  const varyValue = headers['vary'];
-  headers['vary'] = varyValue ? `${varyValue}, Accept-Encoding` : 'Accept-Encoding';
+  headers['vary'] = appendVary(headers['vary'], 'Accept-Encoding');
 
   if (acceptEncoding.includes('br')) {
     headers['content-encoding'] = 'br';
@@ -910,7 +918,7 @@ export async function createLocalApiServer(options = {}) {
       const headers = Object.fromEntries(response.headers.entries());
       const corsOrigin = getSidecarCorsOrigin(req);
       headers['access-control-allow-origin'] = corsOrigin;
-      headers['vary'] = headers['vary'] ? headers['vary'] + ', Origin' : 'Origin';
+      headers['vary'] = appendVary(headers['vary'], 'Origin');
 
       if (!skipRecord) {
         recordTraffic({
