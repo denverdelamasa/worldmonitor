@@ -2,6 +2,7 @@ import { isDesktopRuntime } from '../services/runtime';
 import { invokeTauri } from '../services/tauri-bridge';
 import { t } from '../services/i18n';
 import { h, replaceChildren, safeHtml } from '../utils/dom-utils';
+import { trackPanelResized } from '@/services/analytics';
 
 export interface PanelOptions {
   id: string;
@@ -190,6 +191,7 @@ export class Panel {
         this.element.classList.contains('span-3') ? 3 :
           this.element.classList.contains('span-2') ? 2 : 1;
       savePanelSpan(this.panelId, currentSpan);
+      trackPanelResized(this.panelId, currentSpan);
     };
 
     this.resizeHandle.addEventListener('mousedown', onMouseDown);
@@ -251,6 +253,7 @@ export class Panel {
         this.element.classList.contains('span-3') ? 3 :
           this.element.classList.contains('span-2') ? 2 : 1;
       savePanelSpan(this.panelId, currentSpan);
+      trackPanelResized(this.panelId, currentSpan);
     };
 
     this.onDocMouseUp = () => {

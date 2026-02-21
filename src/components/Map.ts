@@ -138,7 +138,7 @@ export class MapComponent {
   private popup: MapPopup;
   private onHotspotClick?: (hotspot: Hotspot) => void;
   private onTimeRangeChange?: (range: TimeRange) => void;
-  private onLayerChange?: (layer: keyof MapLayers, enabled: boolean) => void;
+  private onLayerChange?: (layer: keyof MapLayers, enabled: boolean, source: 'user' | 'programmatic') => void;
   private layerZoomOverrides: Partial<Record<keyof MapLayers, boolean>> = {};
   private onStateChange?: (state: MapState) => void;
   private highlightedAssets: Record<AssetType, Set<string>> = {
@@ -2877,7 +2877,7 @@ export class MapComponent {
     'natural', 'weather', 'outages', 'ais', 'protests', 'flights', 'military', 'techEvents',
   ]);
 
-  public toggleLayer(layer: keyof MapLayers): void {
+  public toggleLayer(layer: keyof MapLayers, source: 'user' | 'programmatic' = 'user'): void {
     console.log(`[Map.toggleLayer] ${layer}: ${this.state.layers[layer]} -> ${!this.state.layers[layer]}`);
     this.state.layers[layer] = !this.state.layers[layer];
     if (this.state.layers[layer]) {
@@ -2905,12 +2905,12 @@ export class MapComponent {
       btn?.classList.remove('loading');
     }
 
-    this.onLayerChange?.(layer, this.state.layers[layer]);
+    this.onLayerChange?.(layer, this.state.layers[layer], source);
     // Defer render to next frame to avoid blocking the click handler
     requestAnimationFrame(() => this.render());
   }
 
-  public setOnLayerChange(callback: (layer: keyof MapLayers, enabled: boolean) => void): void {
+  public setOnLayerChange(callback: (layer: keyof MapLayers, enabled: boolean, source: 'user' | 'programmatic') => void): void {
     this.onLayerChange = callback;
   }
 
@@ -3126,7 +3126,7 @@ export class MapComponent {
       }
       const btn = document.querySelector(`[data-layer="${layer}"]`);
       btn?.classList.add('active');
-      this.onLayerChange?.(layer, true);
+      this.onLayerChange?.(layer, true, 'programmatic');
       this.render();
     }
   }

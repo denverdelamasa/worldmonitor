@@ -372,7 +372,7 @@ export class MapContainer {
     }
   }
 
-  public setOnLayerChange(callback: (layer: keyof MapLayers, enabled: boolean) => void): void {
+  public setOnLayerChange(callback: (layer: keyof MapLayers, enabled: boolean, source: 'user' | 'programmatic') => void): void {
     if (this.useDeckGL) {
       this.deckGLMap?.setOnLayerChange(callback);
     } else {

@@ -1,6 +1,7 @@
 import { isDesktopRuntime } from '@/services/runtime';
 import { t } from '@/services/i18n';
 import { isMobileDevice } from '@/utils';
+import { trackDownloadClicked, trackDownloadBannerDismissed } from '@/services/analytics';
 
 const STORAGE_KEY = 'wm-download-banner-dismissed';
 const SHOW_DELAY_MS = 12_000;
@@ -23,7 +24,8 @@ export function maybeShowDownloadBanner(): void {
   }, SHOW_DELAY_MS);
 }
 
-function dismiss(panel: HTMLElement): void {
+function dismiss(panel: HTMLElement, fromDownload = false): void {
+  if (!fromDownload) trackDownloadBannerDismissed();
   localStorage.setItem(STORAGE_KEY, '1');
   panel.classList.remove('wm-dl-show');
   panel.addEventListener('transitionend', () => panel.remove(), { once: true });
@@ -82,9 +84,13 @@ function renderButtons(container: HTMLElement, buttons: DlButton[], panel: HTMLE
   container.innerHTML = buttons
     .map(b => `<a class="wm-dl-btn ${b.cls}" href="${b.href}">${b.label}</a>`)
     .join('');
-  container.querySelectorAll('.wm-dl-btn').forEach(btn =>
-    btn.addEventListener('click', () => dismiss(panel))
-  );
+  container.querySelectorAll<HTMLAnchorElement>('.wm-dl-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const platform = new URL(btn.href, location.origin).searchParams.get('platform') || 'unknown';
+      trackDownloadClicked(platform);
+      dismiss(panel, true);
+    });
+  });
 }
 
 function buildPanel(): HTMLElement {
@@ -108,7 +114,7 @@ function buildPanel(): HTMLElement {
   const btnsContainer = el.querySelector('.wm-dl-btns') as HTMLElement;
   renderButtons(btnsContainer, primaryButtons, el);
 
-  el.querySelector('.wm-dl-close')!.addEventListener('click', () => dismiss(el));
+  el.querySelector('.wm-dl-close')!.addEventListener('click', () => dismiss(el, false));
 
   const toggle = el.querySelector('.wm-dl-toggle');
   if (toggle) {

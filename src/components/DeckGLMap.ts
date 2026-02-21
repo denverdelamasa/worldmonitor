@@ -274,7 +274,7 @@ export class DeckGLMap {
   private onHotspotClick?: (hotspot: Hotspot) => void;
   private onTimeRangeChange?: (range: TimeRange) => void;
   private onCountryClick?: (country: CountryClickPayload) => void;
-  private onLayerChange?: (layer: keyof MapLayers, enabled: boolean) => void;
+  private onLayerChange?: (layer: keyof MapLayers, enabled: boolean, source: 'user' | 'programmatic') => void;
   private onStateChange?: (state: DeckMapState) => void;
 
   // Highlighted assets
@@ -2820,7 +2820,7 @@ export class DeckGLMap {
         if (layer) {
           this.state.layers[layer] = (input as HTMLInputElement).checked;
           this.render();
-          this.onLayerChange?.(layer, (input as HTMLInputElement).checked);
+          this.onLayerChange?.(layer, (input as HTMLInputElement).checked, 'user');
         }
       });
     });
@@ -3446,7 +3446,7 @@ export class DeckGLMap {
     this.onTimeRangeChange = callback;
   }
 
-  public setOnLayerChange(callback: (layer: keyof MapLayers, enabled: boolean) => void): void {
+  public setOnLayerChange(callback: (layer: keyof MapLayers, enabled: boolean, source: 'user' | 'programmatic') => void): void {
     this.onLayerChange = callback;
   }
 
@@ -3518,7 +3518,7 @@ export class DeckGLMap {
       const toggle = this.container.querySelector(`.layer-toggle[data-layer="${layer}"] input`) as HTMLInputElement;
       if (toggle) toggle.checked = true;
       this.render();
-      this.onLayerChange?.(layer, true);
+      this.onLayerChange?.(layer, true, 'programmatic');
     }
   }
 
@@ -3529,7 +3529,7 @@ export class DeckGLMap {
     const toggle = this.container.querySelector(`.layer-toggle[data-layer="${layer}"] input`) as HTMLInputElement;
     if (toggle) toggle.checked = this.state.layers[layer];
     this.render();
-    this.onLayerChange?.(layer, this.state.layers[layer]);
+    this.onLayerChange?.(layer, this.state.layers[layer], 'programmatic');
   }
 
   // Get center coordinates for programmatic popup positioning

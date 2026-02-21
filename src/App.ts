@@ -100,6 +100,7 @@ import { isDesktopRuntime } from '@/services/runtime';
 import { IntelligenceServiceClient } from '@/generated/client/worldmonitor/intelligence/v1/service_client';
 import { ResearchServiceClient } from '@/generated/client/worldmonitor/research/v1/service_client';
 import { isFeatureAvailable } from '@/services/runtime-config';
+import { trackEvent, trackPanelView, trackVariantSwitch, trackThemeChanged, trackMapViewChange, trackMapLayerToggle, trackCountrySelected, trackCountryBriefOpened, trackSearchResultSelected, trackPanelToggled, trackUpdateShown, trackUpdateClicked, trackUpdateDismissed, trackCriticalBannerAction, trackDeeplinkOpened } from '@/services/analytics';
 import { invokeTauri } from '@/services/tauri-bridge';
 import { getCountryAtCoordinates, hasCountryGeometry, isCoordinateInCountry, preloadCountryGeometry } from '@/services/country-geometry';
 import { initI18n, t, changeLanguage } from '@/services/i18n';
@@ -328,6 +329,7 @@ export class App {
   }
 
   public async init(): Promise<void> {
+    const initStart = performance.now();
     await initDB();
     await initI18n();
 
@@ -400,6 +402,15 @@ export class App {
     this.handleDeepLinks();
 
     this.setupUpdateChecks();
+
+    // Track app load timing and panel count
+    trackEvent('wm_app_loaded', {
+      load_time_ms: Math.round(performance.now() - initStart),
+      panel_count: Object.keys(this.panels).length,
+    });
+
+    // Observe panel visibility for usage analytics
+    this.setupPanelViewTracking();
   }
 
   private handleDeepLinks(): void {
@@ -412,6 +423,7 @@ export class App {
     if (url.pathname === '/story' || url.searchParams.has('c')) {
       const countryCode = url.searchParams.get('c');
       if (countryCode) {
+        trackDeeplinkOpened('story', countryCode);
         const countryNames: Record<string, string> = {
           UA: 'Ukraine', RU: 'Russia', CN: 'China', US: 'United States',
           IR: 'Iran', IL: 'Israel', TW: 'Taiwan', KP: 'North Korea',
@@ -448,6 +460,7 @@ export class App {
     const deepLinkCountry = this.pendingDeepLinkCountry;
     this.pendingDeepLinkCountry = null;
     if (deepLinkCountry) {
+      trackDeeplinkOpened('country', deepLinkCountry);
       const cName = App.resolveCountryName(deepLinkCountry);
       let attempts = 0;
       const checkAndOpenBrief = () => {
@@ -464,6 +477,30 @@ export class App {
         }
       };
       setTimeout(checkAndOpenBrief, DEEP_LINK_INITIAL_DELAY_MS);
+    }
+  }
+
+  private setupPanelViewTracking(): void {
+    const viewedPanels = new Set<string>();
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.3) {
+          const id = (entry.target as HTMLElement).dataset.panel;
+          if (id && !viewedPanels.has(id)) {
+            viewedPanels.add(id);
+            trackPanelView(id);
+          }
+        }
+      }
+    }, { threshold: 0.3 });
+
+    const grid = document.getElementById('panelsGrid');
+    if (grid) {
+      for (const child of Array.from(grid.children)) {
+        if ((child as HTMLElement).dataset.panel) {
+          observer.observe(child);
+        }
+      }
     }
   }
 
@@ -526,6 +563,7 @@ export class App {
         ? data.url
         : 'https://github.com/koala73/worldmonitor/releases/latest';
       this.logUpdaterOutcome('update_available', { current, remote, dismissed: false });
+      trackUpdateShown(current, remote);
       await this.showUpdateBadge(remote, releaseUrl);
     } catch (error) {
       this.logUpdaterOutcome('fetch_failed', {
@@ -598,6 +636,7 @@ export class App {
     badge.textContent = `UPDATE v${version}`;
     badge.addEventListener('click', (e) => {
       e.preventDefault();
+      trackUpdateClicked(version);
       if (this.isDesktopApp) {
         void invokeTauri<void>('open_url', { url }).catch((error) => {
           this.logUpdaterOutcome('open_failed', {
@@ -617,6 +656,7 @@ export class App {
     dismiss.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      trackUpdateDismissed(version);
       localStorage.setItem(`wm-update-dismissed-${version}`, '1');
       badge.remove();
     });
@@ -734,8 +774,9 @@ export class App {
   }
 
   private setupMapLayerHandlers(): void {
-    this.map?.setOnLayerChange((layer, enabled) => {
-      console.log(`[App.onLayerChange] ${layer}: ${enabled}`);
+    this.map?.setOnLayerChange((layer, enabled, source) => {
+      console.log(`[App.onLayerChange] ${layer}: ${enabled} (${source})`);
+      trackMapLayerToggle(layer, enabled, source);
       // Save layer settings
       this.mapLayers[layer] = enabled;
       saveToStorage(STORAGE_KEYS.mapLayers, this.mapLayers);
@@ -800,6 +841,7 @@ export class App {
 
     this.map.onCountryClicked(async (countryClick) => {
       if (countryClick.code && countryClick.name) {
+        trackCountrySelected(countryClick.code, countryClick.name, 'map');
         this.openCountryBriefByCode(countryClick.code, countryClick.name);
       } else {
         this.openCountryBrief(countryClick.lat, countryClick.lon);
@@ -845,6 +887,7 @@ export class App {
   public async openCountryBriefByCode(code: string, country: string): Promise<void> {
     if (!this.countryBriefPage) return;
     this.map?.setRenderPaused(true);
+    trackCountryBriefOpened(code);
 
     // Normalize to canonical name (GeoJSON may use "United States of America" etc.)
     const canonicalName = TIER1_COUNTRIES[code] || App.resolveCountryName(code);
@@ -1439,6 +1482,7 @@ export class App {
   }
 
   private handleSearchResult(result: SearchResult): void {
+    trackSearchResultSelected(result.type);
     switch (result.type) {
       case 'news': {
         // Find and scroll to the news panel containing this item
@@ -1630,6 +1674,7 @@ export class App {
       }
       case 'country': {
         const { code, name } = result.data as { code: string; name: string };
+        trackCountrySelected(code, name, 'search');
         this.openCountryBriefByCode(code, name);
         break;
       }
@@ -1961,6 +2006,7 @@ export class App {
     // Event handlers
     this.criticalBannerEl.querySelector('.banner-view')?.addEventListener('click', () => {
       console.log('[Banner] View Region clicked:', top.theaterId, 'lat:', top.centerLat, 'lon:', top.centerLon);
+      trackCriticalBannerAction('view', top.theaterId);
       // Use typeof check - truthy check would fail for coordinate 0
       if (typeof top.centerLat === 'number' && typeof top.centerLon === 'number') {
         this.map?.setCenter(top.centerLat, top.centerLon, 4);
@@ -1970,6 +2016,7 @@ export class App {
     });
 
     this.criticalBannerEl.querySelector('.banner-dismiss')?.addEventListener('click', () => {
+      trackCriticalBannerAction('dismiss', top.theaterId);
       this.criticalBannerEl?.classList.add('dismissed');
       document.body.classList.remove('has-critical-banner');
       sessionStorage.setItem('banner-dismissed', Date.now().toString());
@@ -2611,6 +2658,7 @@ export class App {
       const next = getCurrentTheme() === 'dark' ? 'light' : 'dark';
       setTheme(next);
       this.updateHeaderThemeIcon();
+      trackThemeChanged(next);
     });
 
     // Sources modal
@@ -2623,6 +2671,7 @@ export class App {
           const variant = link.dataset.variant;
           if (variant && variant !== SITE_VARIANT) {
             e.preventDefault();
+            trackVariantSwitch(SITE_VARIANT, variant);
             localStorage.setItem('worldmonitor-variant', variant);
             window.location.reload();
           }
@@ -2645,6 +2694,7 @@ export class App {
     const regionSelect = document.getElementById('regionSelect') as HTMLSelectElement;
     regionSelect?.addEventListener('change', () => {
       this.map?.setView(regionSelect.value as MapView);
+      trackMapViewChange(regionSelect.value);
     });
 
     // Language selector
@@ -2907,7 +2957,9 @@ export class App {
 
         if (panelKey === 'intel-findings') {
           if (!this.findingsBadge) return;
-          this.findingsBadge.setEnabled(!this.findingsBadge.isEnabled());
+          const newState = !this.findingsBadge.isEnabled();
+          this.findingsBadge.setEnabled(newState);
+          trackPanelToggled('intel-findings', newState);
           this.renderPanelToggles();
           return;
         }
@@ -2916,6 +2968,7 @@ export class App {
         console.log('[Panel Toggle] Clicked:', panelKey, 'Current enabled:', config?.enabled);
         if (config) {
           config.enabled = !config.enabled;
+          trackPanelToggled(panelKey, config.enabled);
           console.log('[Panel Toggle] New enabled:', config.enabled);
           saveToStorage(STORAGE_KEYS.panels, this.panelSettings);
           this.renderPanelToggles();

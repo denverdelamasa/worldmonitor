@@ -1,4 +1,5 @@
 import { LANGUAGES, changeLanguage, getCurrentLanguage, t } from '../services/i18n';
+import { trackLanguageChange } from '@/services/analytics';
 
 export class LanguageSelector {
     private element: HTMLElement;
@@ -73,6 +74,7 @@ export class LanguageSelector {
             option.addEventListener('click', (e) => {
                 const code = (e.currentTarget as HTMLElement).dataset.code;
                 if (code && code !== this.currentLang) {
+                    trackLanguageChange(code);
                     changeLanguage(code);
                 }
                 this.close();

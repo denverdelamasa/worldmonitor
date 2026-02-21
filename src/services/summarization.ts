@@ -11,6 +11,7 @@ import { mlWorker } from './ml-worker';
 import { SITE_VARIANT } from '@/config';
 import { BETA_MODE } from '@/config/beta';
 import { isFeatureAvailable, type RuntimeFeatureId } from './runtime-config';
+import { trackLLMUsage, trackLLMFailure } from './analytics';
 import { NewsServiceClient, type SummarizeArticleResponse } from '@/generated/client/worldmonitor/news/v1/service_client';
 import { createCircuitBreaker } from '@/utils';
 
@@ -19,6 +20,7 @@ export type SummarizationProvider = 'ollama' | 'groq' | 'openrouter' | 'browser'
 export interface SummarizationResult {
   summary: string;
   provider: SummarizationProvider;
+  model: string;
   cached: boolean;
 }
 
@@ -45,6 +47,8 @@ const API_PROVIDERS: ApiProviderDef[] = [
   { featureId: 'aiOpenRouter',  provider: 'openrouter', label: 'OpenRouter' },
 ];
 
+let lastAttemptedProvider = 'none';
+
 // ── Unified API provider caller (via SummarizeArticle RPC) ──
 
 async function tryApiProvider(
@@ -54,6 +58,7 @@ async function tryApiProvider(
   lang?: string,
 ): Promise<SummarizationResult | null> {
   if (!isFeatureAvailable(providerDef.featureId)) return null;
+  lastAttemptedProvider = providerDef.provider;
   try {
     const resp: SummarizeArticleResponse = await summaryBreaker.execute(async () => {
       return newsClient.summarizeArticle({
@@ -78,6 +83,7 @@ async function tryApiProvider(
     return {
       summary,
       provider: resultProvider as SummarizationProvider,
+      model: resp.model || providerDef.provider,
       cached,
     };
   } catch (error) {
@@ -94,6 +100,7 @@ async function tryBrowserT5(headlines: string[], modelId?: string): Promise<Summ
       console.log('[Summarization] Browser ML not available');
       return null;
     }
+    lastAttemptedProvider = 'browser';
 
     const combinedText = headlines.slice(0, 6).map(h => h.slice(0, 80)).join('. ');
     const prompt = `Summarize the main themes from these news headlines in 2 sentences: ${combinedText}`;
@@ -108,6 +115,7 @@ async function tryBrowserT5(headlines: string[], modelId?: string): Promise<Summ
     return {
       summary,
       provider: 'browser',
+      model: modelId || 't5-small',
       cached: false,
     };
   } catch (error) {
@@ -150,6 +158,26 @@ export async function generateSummary(
     return null;
   }
 
+  lastAttemptedProvider = 'none';
+  const result = await generateSummaryInternal(headlines, onProgress, geoContext, lang);
+
+  // Track at generateSummary return only (not inside tryApiProvider) to avoid
+  // double-counting beta comparison traffic. Only the winning provider is recorded.
+  if (result) {
+    trackLLMUsage(result.provider, result.model, result.cached);
+  } else {
+    trackLLMFailure(lastAttemptedProvider);
+  }
+
+  return result;
+}
+
+async function generateSummaryInternal(
+  headlines: string[],
+  onProgress: ProgressCallback | undefined,
+  geoContext: string | undefined,
+  lang: string,
+): Promise<SummarizationResult | null> {
   if (BETA_MODE) {
     const modelReady = mlWorker.isAvailable && mlWorker.isModelLoaded('summarization-beta');
 

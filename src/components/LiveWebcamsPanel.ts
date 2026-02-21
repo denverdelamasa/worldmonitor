@@ -2,6 +2,7 @@ import { Panel } from './Panel';
 import { isDesktopRuntime, getRemoteApiBaseUrl } from '@/services/runtime';
 import { escapeHtml } from '@/utils/sanitize';
 import { t } from '../services/i18n';
+import { trackWebcamSelected, trackWebcamRegionFiltered } from '@/services/analytics';
 
 type WebcamRegion = 'middle-east' | 'europe' | 'asia' | 'americas';
 
@@ -136,6 +137,7 @@ export class LiveWebcamsPanel extends Panel {
 
   private setRegionFilter(filter: RegionFilter): void {
     if (filter === this.regionFilter) return;
+    trackWebcamRegionFiltered(filter);
     this.regionFilter = filter;
     this.toolbar?.querySelectorAll('.webcam-region-btn').forEach(btn => {
       (btn as HTMLElement).classList.toggle('active', (btn as HTMLElement).dataset.region === filter);
@@ -208,6 +210,7 @@ export class LiveWebcamsPanel extends Panel {
       const cell = document.createElement('div');
       cell.className = 'webcam-cell';
       cell.addEventListener('click', () => {
+        trackWebcamSelected(feed.id, feed.city, 'grid');
         this.activeFeed = feed;
         this.setViewMode('single');
       });
@@ -251,6 +254,7 @@ export class LiveWebcamsPanel extends Panel {
       btn.className = `webcam-feed-btn${feed.id === this.activeFeed.id ? ' active' : ''}`;
       btn.textContent = feed.city;
       btn.addEventListener('click', () => {
+        trackWebcamSelected(feed.id, feed.city, 'single');
         this.activeFeed = feed;
         this.render();
       });

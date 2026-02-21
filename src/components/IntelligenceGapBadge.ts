@@ -3,6 +3,7 @@ import { getRecentAlerts, type UnifiedAlert } from '@/services/cross-module-inte
 import { t } from '@/services/i18n';
 import { getSignalContext } from '@/utils/analysis-constants';
 import { escapeHtml } from '@/utils/sanitize';
+import { trackFindingClicked } from '@/services/analytics';
 
 const LOW_COUNT_THRESHOLD = 3;
 const MAX_VISIBLE_FINDINGS = 10;
@@ -82,6 +83,7 @@ export class IntelligenceFindingsBadge {
       const finding = this.findings.find(f => f.id === id);
       if (!finding) return;
 
+      trackFindingClicked(finding.id, finding.source, finding.type, finding.priority);
       if (finding.source === 'signal' && this.onSignalClick) {
         this.onSignalClick(finding.original as CorrelationSignal);
       } else if (finding.source === 'alert' && this.onAlertClick) {
@@ -463,6 +465,7 @@ export class IntelligenceFindingsBadge {
         const finding = this.findings.find(f => f.id === id);
         if (!finding) return;
 
+        trackFindingClicked(finding.id, finding.source, finding.type, finding.priority);
         if (finding.source === 'signal' && this.onSignalClick) {
           this.onSignalClick(finding.original as CorrelationSignal);
           overlay.remove();

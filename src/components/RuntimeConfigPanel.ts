@@ -19,6 +19,7 @@ import { invokeTauri } from '@/services/tauri-bridge';
 import { escapeHtml } from '@/utils/sanitize';
 import { isDesktopRuntime } from '@/services/runtime';
 import { t } from '@/services/i18n';
+import { trackFeatureToggle } from '@/services/analytics';
 
 const SIGNUP_URLS: Partial<Record<RuntimeSecretKey, string>> = {
   GROQ_API_KEY: 'https://console.groq.com/keys',
@@ -388,6 +389,7 @@ export class RuntimeConfigPanel extends Panel {
       input.addEventListener('change', () => {
         const featureId = input.dataset.toggle as RuntimeFeatureDefinition['id'] | undefined;
         if (!featureId) return;
+        trackFeatureToggle(featureId, input.checked);
         setFeatureToggle(featureId, input.checked);
       });
     });

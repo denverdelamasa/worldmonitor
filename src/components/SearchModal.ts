@@ -1,5 +1,6 @@
 import { escapeHtml } from '@/utils/sanitize';
 import { t } from '@/services/i18n';
+import { trackSearchUsed } from '@/services/analytics';
 
 export type SearchResultType = 'country' | 'news' | 'hotspot' | 'market' | 'prediction' | 'conflict' | 'base' | 'pipeline' | 'cable' | 'datacenter' | 'earthquake' | 'outage' | 'nuclear' | 'irradiator' | 'techcompany' | 'ailab' | 'startup' | 'techevent' | 'techhq' | 'accelerator' | 'exchange' | 'financialcenter' | 'centralbank' | 'commodityhub';
 
@@ -164,6 +165,7 @@ export class SearchModal {
     }
     this.results = this.results.slice(0, MAX_RESULTS);
 
+    trackSearchUsed(query.length, this.results.length);
     this.selectedIndex = 0;
     this.renderResults();
   }
