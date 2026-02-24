@@ -124,14 +124,10 @@ function toUcdpGeoEvent(proto: ProtoUcdpEvent): UcdpGeoEvent {
 
 // ---- Adapter 3: Proto HumanitarianCountrySummary -> legacy HapiConflictSummary ----
 
-const ISO3_TO_ISO2: Record<string, string> = {
-  USA: 'US', RUS: 'RU', CHN: 'CN', UKR: 'UA', IRN: 'IR',
-  ISR: 'IL', TWN: 'TW', PRK: 'KP', SAU: 'SA', TUR: 'TR',
-  POL: 'PL', DEU: 'DE', FRA: 'FR', GBR: 'GB', IND: 'IN',
-  PAK: 'PK', SYR: 'SY', YEM: 'YE', MMR: 'MM', VEN: 'VE',
-};
-
-const ISO2_TO_ISO2_KEYS = Object.values(ISO3_TO_ISO2);
+const HAPI_COUNTRY_CODES = [
+  'US', 'RU', 'CN', 'UA', 'IR', 'IL', 'TW', 'KP', 'SA', 'TR',
+  'PL', 'DE', 'FR', 'GB', 'IN', 'PK', 'SY', 'YE', 'MM', 'VE',
+];
 
 function toHapiSummary(proto: ProtoHumanSummary): HapiConflictSummary {
   // Proto fields now accurately represent HAPI conflict event data (MEDIUM-1 fix)
@@ -271,7 +267,7 @@ export async function fetchUcdpClassifications(): Promise<Map<string, UcdpConfli
 
 export async function fetchHapiSummary(): Promise<Map<string, HapiConflictSummary>> {
   const results = await Promise.allSettled(
-    ISO2_TO_ISO2_KEYS.map(async (iso2) => {
+    HAPI_COUNTRY_CODES.map(async (iso2) => {
       const resp = await hapiBreaker.execute(async () => {
         return client.getHumanitarianSummary({ countryCode: iso2 });
       }, emptyHapiFallback);

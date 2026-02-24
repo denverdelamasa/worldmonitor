@@ -1,29 +1,7 @@
 import { calculateCII, type CountryScore } from './country-instability';
 import type { ClusteredEvent } from '@/types';
 import type { ThreatLevel } from './threat-classifier';
-
-const COUNTRY_KEYWORDS: Record<string, string[]> = {
-  US: ['united states', 'usa', 'america', 'washington', 'biden', 'trump', 'pentagon'],
-  RU: ['russia', 'moscow', 'kremlin', 'putin'],
-  CN: ['china', 'beijing', 'xi jinping', 'prc'],
-  UA: ['ukraine', 'kyiv', 'zelensky', 'donbas'],
-  IR: ['iran', 'tehran', 'khamenei', 'irgc'],
-  IL: ['israel', 'tel aviv', 'netanyahu', 'idf', 'gaza'],
-  TW: ['taiwan', 'taipei'],
-  KP: ['north korea', 'pyongyang', 'kim jong'],
-  SA: ['saudi arabia', 'riyadh', 'mbs'],
-  TR: ['turkey', 'ankara', 'erdogan'],
-  PL: ['poland', 'warsaw'],
-  DE: ['germany', 'berlin'],
-  FR: ['france', 'paris', 'macron'],
-  GB: ['britain', 'uk', 'london', 'starmer'],
-  IN: ['india', 'delhi', 'modi'],
-  PK: ['pakistan', 'islamabad'],
-  SY: ['syria', 'damascus', 'assad'],
-  YE: ['yemen', 'sanaa', 'houthi'],
-  MM: ['myanmar', 'burma', 'rangoon'],
-  VE: ['venezuela', 'caracas', 'maduro'],
-};
+import { CURATED_COUNTRIES } from '@/config/countries';
 
 export interface StoryData {
   countryCode: string;
@@ -85,7 +63,7 @@ export function collectStoryData(
   const scores = calculateCII();
   const countryScore = scores.find(s => s.code === countryCode) || null;
 
-  const keywords = COUNTRY_KEYWORDS[countryCode] || [countryName.toLowerCase()];
+  const keywords = CURATED_COUNTRIES[countryCode]?.scoringKeywords || [countryName.toLowerCase()];
   const countryNews = allNews.filter(e => {
     const lower = e.primaryTitle.toLowerCase();
     return keywords.some(kw => lower.includes(kw));

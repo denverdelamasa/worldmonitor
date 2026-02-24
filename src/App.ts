@@ -26,6 +26,8 @@ import { SatelliteFiresPanel } from '@/components/SatelliteFiresPanel';
 import { analyzeFlightsForSurge, surgeAlertToSignal, detectForeignMilitaryPresence, foreignPresenceToSignal, type TheaterPostureSummary } from '@/services/military-surge';
 import { fetchCachedTheaterPosture } from '@/services/cached-theater-posture';
 import { ingestProtestsForCII, ingestMilitaryForCII, ingestNewsForCII, ingestOutagesForCII, ingestConflictsForCII, ingestUcdpForCII, ingestHapiForCII, ingestDisplacementForCII, ingestClimateForCII, startLearning, isInLearningMode, calculateCII, getCountryData, TIER1_COUNTRIES } from '@/services/country-instability';
+import { CURATED_COUNTRIES } from '@/config/countries';
+import { getCountryNameByCode } from '@/services/country-geometry';
 import { dataFreshness, type DataSourceId } from '@/services/data-freshness';
 import { focusInvestmentOnMap } from '@/services/investments-focus';
 import { fetchConflictEvents, fetchUcdpClassifications, fetchHapiSummary, fetchUcdpEvents, deduplicateAgainstAcled } from '@/services/conflict';
@@ -429,15 +431,7 @@ export class App {
       const countryCode = url.searchParams.get('c');
       if (countryCode) {
         trackDeeplinkOpened('story', countryCode);
-        const countryNames: Record<string, string> = {
-          UA: 'Ukraine', RU: 'Russia', CN: 'China', US: 'United States',
-          IR: 'Iran', IL: 'Israel', TW: 'Taiwan', KP: 'North Korea',
-          SA: 'Saudi Arabia', TR: 'Turkey', PL: 'Poland', DE: 'Germany',
-          FR: 'France', GB: 'United Kingdom', IN: 'India', PK: 'Pakistan',
-          SY: 'Syria', YE: 'Yemen', MM: 'Myanmar', VE: 'Venezuela',
-          MX: 'Mexico',
-        };
-        const countryName = countryNames[countryCode.toUpperCase()] || countryCode;
+        const countryName = getCountryNameByCode(countryCode.toUpperCase()) || App.resolveCountryName(countryCode.toUpperCase());
 
         // Wait for data to load, then open story
         let attempts = 0;
@@ -922,7 +916,7 @@ export class App {
     trackCountryBriefOpened(code);
 
     // Normalize to canonical name (GeoJSON may use "United States of America" etc.)
-    const canonicalName = TIER1_COUNTRIES[code] || App.resolveCountryName(code);
+    const canonicalName = getCountryNameByCode(code) || App.resolveCountryName(code);
     if (canonicalName !== code) country = canonicalName;
 
     const scores = calculateCII();
@@ -1074,7 +1068,7 @@ export class App {
 
     const events: TimelineEvent[] = [];
     const countryLower = country.toLowerCase();
-    const hasGeoShape = hasCountryGeometry(code) || !!App.COUNTRY_BOUNDS[code];
+    const hasGeoShape = hasCountryGeometry(code);
     const inCountry = (lat: number, lon: number) => hasGeoShape && this.isInCountry(lat, lon, code);
     const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
 
@@ -1143,50 +1137,6 @@ export class App {
     this.countryTimeline.render(events.filter(e => e.timestamp >= sevenDaysAgo));
   }
 
-  private static COUNTRY_BOUNDS: Record<string, { n: number; s: number; e: number; w: number }> = {
-    IR: { n: 40, s: 25, e: 63, w: 44 }, IL: { n: 33.3, s: 29.5, e: 35.9, w: 34.3 },
-    SA: { n: 32, s: 16, e: 55, w: 35 }, AE: { n: 26.1, s: 22.6, e: 56.4, w: 51.6 },
-    IQ: { n: 37.4, s: 29.1, e: 48.6, w: 38.8 }, SY: { n: 37.3, s: 32.3, e: 42.4, w: 35.7 },
-    YE: { n: 19, s: 12, e: 54.5, w: 42 }, LB: { n: 34.7, s: 33.1, e: 36.6, w: 35.1 },
-    CN: { n: 53.6, s: 18.2, e: 134.8, w: 73.5 }, TW: { n: 25.3, s: 21.9, e: 122, w: 120 },
-    JP: { n: 45.5, s: 24.2, e: 153.9, w: 122.9 }, KR: { n: 38.6, s: 33.1, e: 131.9, w: 124.6 },
-    KP: { n: 43.0, s: 37.7, e: 130.7, w: 124.2 }, IN: { n: 35.5, s: 6.7, e: 97.4, w: 68.2 },
-    PK: { n: 37, s: 24, e: 77, w: 61 }, AF: { n: 38.5, s: 29.4, e: 74.9, w: 60.5 },
-    UA: { n: 52.4, s: 44.4, e: 40.2, w: 22.1 }, RU: { n: 82, s: 41.2, e: 180, w: 19.6 },
-    BY: { n: 56.2, s: 51.3, e: 32.8, w: 23.2 }, PL: { n: 54.8, s: 49, e: 24.1, w: 14.1 },
-    EG: { n: 31.7, s: 22, e: 36.9, w: 25 }, LY: { n: 33, s: 19.5, e: 25, w: 9.4 },
-    SD: { n: 22, s: 8.7, e: 38.6, w: 21.8 }, US: { n: 49, s: 24.5, e: -66.9, w: -125 },
-    GB: { n: 58.7, s: 49.9, e: 1.8, w: -8.2 }, DE: { n: 55.1, s: 47.3, e: 15.0, w: 5.9 },
-    FR: { n: 51.1, s: 41.3, e: 9.6, w: -5.1 }, TR: { n: 42.1, s: 36, e: 44.8, w: 26 },
-    BR: { n: 5.3, s: -33.8, e: -34.8, w: -73.9 },
-    MX: { n: 32.7, s: 14.5, e: -86.7, w: -118.4 },
-  };
-
-  private static COUNTRY_ALIASES: Record<string, string[]> = {
-    IL: ['israel', 'israeli', 'gaza', 'hamas', 'hezbollah', 'netanyahu', 'idf', 'west bank', 'tel aviv', 'jerusalem'],
-    IR: ['iran', 'iranian', 'tehran', 'persian', 'irgc', 'khamenei'],
-    RU: ['russia', 'russian', 'moscow', 'kremlin', 'putin', 'ukraine war'],
-    UA: ['ukraine', 'ukrainian', 'kyiv', 'zelensky', 'zelenskyy'],
-    CN: ['china', 'chinese', 'beijing', 'taiwan strait', 'south china sea', 'xi jinping'],
-    TW: ['taiwan', 'taiwanese', 'taipei'],
-    KP: ['north korea', 'pyongyang', 'kim jong'],
-    KR: ['south korea', 'seoul'],
-    SA: ['saudi', 'riyadh', 'mbs'],
-    SY: ['syria', 'syrian', 'damascus', 'assad'],
-    YE: ['yemen', 'houthi', 'sanaa'],
-    IQ: ['iraq', 'iraqi', 'baghdad'],
-    AF: ['afghanistan', 'afghan', 'kabul', 'taliban'],
-    PK: ['pakistan', 'pakistani', 'islamabad'],
-    IN: ['india', 'indian', 'new delhi', 'modi'],
-    EG: ['egypt', 'egyptian', 'cairo', 'suez'],
-    LB: ['lebanon', 'lebanese', 'beirut'],
-    TR: ['turkey', 'turkish', 'ankara', 'erdogan', 'türkiye'],
-    US: ['united states', 'american', 'washington', 'pentagon', 'white house'],
-    GB: ['united kingdom', 'british', 'london', 'uk '],
-    BR: ['brazil', 'brazilian', 'brasilia', 'lula', 'bolsonaro'],
-    AE: ['united arab emirates', 'uae', 'emirati', 'dubai', 'abu dhabi'],
-    MX: ['mexico', 'mexican', 'cartel', 'sinaloa', 'jalisco', 'cjng', 'tijuana', 'juarez', 'fentanyl', 'sheinbaum', 'sedena', 'narco'],
-  };
 
   private static otherCountryTermsCache: Map<string, string[]> = new Map();
 
@@ -1204,9 +1154,9 @@ export class App {
     if (cached) return cached;
 
     const dedup = new Set<string>();
-    Object.entries(App.COUNTRY_ALIASES).forEach(([countryCode, aliases]) => {
+    Object.entries(CURATED_COUNTRIES).forEach(([countryCode, cfg]) => {
       if (countryCode === code) return;
-      aliases.forEach((alias) => {
+      cfg.searchAliases.forEach((alias) => {
         const normalized = alias.toLowerCase();
         if (normalized.trim().length > 0) dedup.add(normalized);
       });
@@ -1234,23 +1184,19 @@ export class App {
   }
 
   private static getCountrySearchTerms(country: string, code: string): string[] {
-    const aliases = App.COUNTRY_ALIASES[code];
-    if (aliases) return aliases;
+    const curated = CURATED_COUNTRIES[code];
+    if (curated?.searchAliases?.length) return curated.searchAliases;
     if (/^[A-Z]{2}$/i.test(country.trim())) return [];
     return [country.toLowerCase()];
   }
 
   private isInCountry(lat: number, lon: number, code: string): boolean {
-    const precise = isCoordinateInCountry(lat, lon, code);
-    if (precise != null) return precise;
-    const b = App.COUNTRY_BOUNDS[code];
-    if (!b) return false;
-    return lat >= b.s && lat <= b.n && lon >= b.w && lon <= b.e;
+    return isCoordinateInCountry(lat, lon, code) === true;
   }
 
   private getCountrySignals(code: string, country: string): CountryBriefSignals {
     const countryLower = country.toLowerCase();
-    const hasGeoShape = hasCountryGeometry(code) || !!App.COUNTRY_BOUNDS[code];
+    const hasGeoShape = hasCountryGeometry(code);
 
     let protests = 0;
     if (this.intelligenceCache.protests?.events) {
@@ -1776,15 +1722,26 @@ export class App {
     const panelScores = (this.panels['cii'] as CIIPanel | undefined)?.getScores() ?? [];
     const scores = panelScores.length > 0 ? panelScores : calculateCII();
     const ciiByCode = new Map(scores.map((score) => [score.code, score]));
-    return Object.entries(TIER1_COUNTRIES).map(([code, name]) => {
-      const score = ciiByCode.get(code);
-      return {
-        id: code,
-        title: `${App.toFlagEmoji(code)} ${name}`,
-        subtitle: score ? `CII: ${score.score}/100 • ${score.level}` : 'Country Brief',
-        data: { code, name },
-      };
-    });
+    const items: { id: string; title: string; subtitle: string; data: { code: string; name: string } }[] = [];
+    for (const score of scores) {
+      items.push({
+        id: score.code,
+        title: `${App.toFlagEmoji(score.code)} ${score.name}`,
+        subtitle: `CII: ${score.score}/100 • ${score.level}`,
+        data: { code: score.code, name: score.name },
+      });
+    }
+    for (const [code, name] of Object.entries(TIER1_COUNTRIES)) {
+      if (!ciiByCode.has(code)) {
+        items.push({
+          id: code,
+          title: `${App.toFlagEmoji(code)} ${name}`,
+          subtitle: 'Country Brief',
+          data: { code, name },
+        });
+      }
+    }
+    return items;
   }
 
   private static toFlagEmoji(code: string): string {

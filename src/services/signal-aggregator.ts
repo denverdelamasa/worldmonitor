@@ -11,7 +11,7 @@ import type {
   SocialUnrestEvent,
   AisDisruptionEvent,
 } from '@/types';
-import { TIER1_COUNTRIES } from '@/config/countries';
+import { getCountryAtCoordinates, getCountryNameByCode, nameToCountryCode } from './country-geometry';
 
 export type SignalType =
   | 'internet_outage'
@@ -87,23 +87,13 @@ const REGION_DEFINITIONS: Record<string, { countries: string[]; name: string }> 
   },
 };
 
-const COUNTRY_TO_CODE: Record<string, string> = {
-  'Iran': 'IR', 'Israel': 'IL', 'Saudi Arabia': 'SA', 'United Arab Emirates': 'AE',
-  'Iraq': 'IQ', 'Syria': 'SY', 'Yemen': 'YE', 'Jordan': 'JO', 'Lebanon': 'LB',
-  'China': 'CN', 'Taiwan': 'TW', 'Japan': 'JP', 'South Korea': 'KR', 'North Korea': 'KP',
-  'India': 'IN', 'Pakistan': 'PK', 'Bangladesh': 'BD', 'Afghanistan': 'AF',
-  'Ukraine': 'UA', 'Russia': 'RU', 'Belarus': 'BY', 'Poland': 'PL',
-  'Egypt': 'EG', 'Libya': 'LY', 'Sudan': 'SD', 'South Sudan': 'SS',
-  'United States': 'US', 'United Kingdom': 'GB', 'Germany': 'DE', 'France': 'FR',
-};
-
 function normalizeCountryCode(country: string): string {
   if (country.length === 2) return country.toUpperCase();
-  return COUNTRY_TO_CODE[country] || country.slice(0, 2).toUpperCase();
+  return nameToCountryCode(country) || country.slice(0, 2).toUpperCase();
 }
 
 function getCountryName(code: string): string {
-  return TIER1_COUNTRIES[code] || code;
+  return getCountryNameByCode(code) || code;
 }
 
 class SignalAggregator {
@@ -311,16 +301,8 @@ class SignalAggregator {
   }
 
   private coordsToCountry(lat: number, lon: number): string {
-    if (lat >= 25 && lat <= 40 && lon >= 44 && lon <= 63) return 'IR';
-    if (lat >= 29 && lat <= 33 && lon >= 34 && lon <= 36) return 'IL';
-    if (lat >= 15 && lat <= 32 && lon >= 34 && lon <= 55) return 'SA';
-    if (lat >= 20 && lat <= 55 && lon >= 73 && lon <= 135) return 'CN';
-    if (lat >= 22 && lat <= 25 && lon >= 120 && lon <= 122) return 'TW';
-    if (lat >= 8 && lat <= 37 && lon >= 68 && lon <= 97) return 'IN';
-    if (lat >= 44 && lat <= 52 && lon >= 22 && lon <= 40) return 'UA';
-    if (lat >= 50 && lat <= 82 && lon >= 20 && lon <= 180) return 'RU';
-    if (lat >= 22 && lat <= 32 && lon >= 25 && lon <= 35) return 'EG';
-    return 'XX';
+    const hit = getCountryAtCoordinates(lat, lon);
+    return hit?.code ?? 'XX';
   }
 
   private pruneOld(): void {

@@ -1,7 +1,8 @@
 import { getLocationName, type GeoConvergenceAlert } from './geo-convergence';
 import type { CountryScore } from './country-instability';
 import type { CascadeResult, CascadeImpactLevel } from '@/types';
-import { calculateCII, TIER1_COUNTRIES, isInLearningMode } from './country-instability';
+import { calculateCII, isInLearningMode } from './country-instability';
+import { getCountryNameByCode } from './country-geometry';
 import { t } from '@/services/i18n';
 
 export type AlertPriority = 'critical' | 'high' | 'medium' | 'low';
@@ -233,7 +234,7 @@ function getHigherPriority(a: AlertPriority, b: AlertPriority): AlertPriority {
 }
 
 function getCountryDisplayName(code: string): string {
-  return TIER1_COUNTRIES[code] || code;
+  return getCountryNameByCode(code) || code;
 }
 
 function generateCompositeTitle(a: UnifiedAlert, b: UnifiedAlert): string {
@@ -347,7 +348,7 @@ function getCountriesNearLocation(lat: number, lon: number): string[] {
     countries.push(...regionCountries.americas);
   }
 
-  return countries.filter(c => TIER1_COUNTRIES[c]);
+  return countries;
 }
 
 export function checkCIIChanges(): UnifiedAlert[] {
